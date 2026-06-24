@@ -1,8 +1,12 @@
 # Progress Tracker
 
-**Last updated:** <!-- Update this each session -->
+**Last updated:** 2026-06-24
 **Current phase:** Phase 1 MVP
-**Current week:** <!-- e.g. Week 3 -->
+**Current position:** Phase 1, Step 4 complete (Workspace UI). Next: wire a real agent (Plan/Code) or credit logic.
+
+Status key: ✅ Done | 🟡 Partial / stub | 🔲 Not started | 🔴 Blocked
+
+> See [build-log.md](build-log.md) for the step-by-step history of what was built and why.
 
 ---
 
@@ -12,11 +16,11 @@
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Monorepo setup (frontend + backend folders) | 🔲 | |
-| Next.js 15 + Tailwind + shadcn/ui scaffolding | 🔲 | |
-| Python FastAPI + SQLAlchemy async setup | 🔲 | |
-| Neon database + Alembic migrations | 🔲 | |
-| Clerk auth (frontend + FastAPI JWT middleware) | 🔲 | |
+| Monorepo setup (frontend + backend folders) | ✅ | Simple folder monorepo |
+| Next.js + Tailwind + shadcn/ui scaffolding | ✅ | **Next.js 16** (not 15), Tailwind v4, Biome |
+| Python FastAPI + SQLAlchemy async setup | ✅ | FastAPI 0.138, SQLAlchemy 2 async |
+| Neon database + Alembic migrations | 🟡 | Migration `0001` written + validated offline; no live Neon connection yet |
+| Clerk auth (frontend + FastAPI JWT) | ✅ | JWT via `get_current_user` dependency (jose + JWKS), not a middleware class |
 | Render deployment (backend) | 🔲 | |
 | Vercel deployment (frontend) | 🔲 | |
 | CI: GitHub Actions (lint + test on PR) | 🔲 | |
@@ -25,27 +29,28 @@
 
 | Task | Status | Notes |
 |------|--------|-------|
-| LangGraph state schema + graph setup | 🔲 | |
-| Plan Agent (Gemini Flash) | 🔲 | |
-| Code Agent (Mistral Large) | 🔲 | |
+| LangGraph state schema + graph setup | ✅ | `AgentState`, conditional edges (retry/security gating) |
+| Plan Agent (Gemini Flash) | 🟡 | Stub node emits events; no LLM call yet |
+| Code Agent (Mistral Large) | 🟡 | Stub node; no generation/E2B yet |
 | E2B sandbox integration (Python SDK) | 🔲 | |
-| Test Agent (Groq Llama) | 🔲 | |
-| Security Agent (Semgrep + Mistral Small) | 🔲 | |
-| Deploy Agent (Vercel API) | 🔲 | |
-| WebSocket streaming (agent events to frontend) | 🔲 | |
-| Credit deduction + refund logic | 🔲 | |
+| Test Agent (Groq Llama) | 🟡 | Stub node |
+| Security Agent (Semgrep + Mistral Small) | 🟡 | Stub node |
+| Deploy Agent (Vercel API) | 🟡 | Stub node returns placeholder URL |
+| WebSocket streaming (agent events → frontend) | ✅ | `WS /ai/stream/{id}`, token query-param auth, custom stream |
+| Credit deduction + refund logic | 🔲 | TODO marker in `routers/ai.py` |
 
 ### Workspace UI
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Monaco editor integration | 🔲 | |
-| File tree component | 🔲 | |
-| Live preview panel (E2B iframe) | 🔲 | |
-| Chat panel + iteration flow | 🔲 | |
-| Agent progress pipeline UI | 🔲 | |
+| Monaco editor integration | ✅ | `CodeEditor` (read-only, vs-dark, JetBrains Mono) |
+| File tree component | ✅ | `FileTree` driven by `file_created` events |
+| Live preview panel (E2B iframe) | 🟡 | Placeholder + iframe-on-deploy; no E2B preview yet |
+| Chat panel + iteration flow | 🟡 | `ChatPanel` sends initial message; `/ai/iterate` not wired |
+| Agent progress pipeline UI | ✅ | `AgentProgressBar` consumes WS events via `usePipeline` |
 | Version history panel | 🔲 | |
-| GSAP + Framer Motion + Locomotive setup | 🔲 | |
+| GSAP + Framer Motion + Locomotive setup | 🟡 | GSAP + Framer installed; Locomotive + GT Walsheim font not wired |
+| Design tokens foundation | ✅ | design.md tokens in globals.css (`bg-canvas`, `text-ink`, etc.); Inter + JetBrains Mono loaded |
 
 ### Dashboard & Billing
 
@@ -59,20 +64,20 @@
 
 ### F-01 to F-12 Features (see spec.md)
 
-| Feature | Status |
-|---------|--------|
-| F-01 User authentication | 🔲 |
-| F-02 Natural language generation | 🔲 |
-| F-03 Tech stack selection | 🔲 |
-| F-04 Multi-file code generation | 🔲 |
-| F-05 File tree + Monaco editor | 🔲 |
-| F-06 Live preview | 🔲 |
-| F-07 Chat iteration | 🔲 |
-| F-08 Version history | 🔲 |
-| F-09 Stripe credits + billing | 🔲 |
-| F-10 Vercel deployment | 🔲 |
-| F-11 Security scanning | 🔲 |
-| F-12 Neon DB provisioning | 🔲 |
+| Feature | Status | Notes |
+|---------|--------|-------|
+| F-01 User authentication | ✅ | Backend + frontend wired; needs live Clerk+Neon to verify e2e |
+| F-02 Natural language generation | 🟡 | Pipeline + WS + workspace UI in place; agents are stubs |
+| F-03 Tech stack selection | 🔲 | |
+| F-04 Multi-file code generation | 🟡 | Code Agent stub only |
+| F-05 File tree + Monaco editor | 🔲 | |
+| F-06 Live preview | 🔲 | |
+| F-07 Chat iteration | 🔲 | |
+| F-08 Version history | 🔲 | |
+| F-09 Stripe credits + billing | 🔲 | |
+| F-10 Vercel deployment | 🟡 | Deploy Agent stub only |
+| F-11 Security scanning | 🟡 | Security Agent stub only |
+| F-12 Neon DB provisioning | 🔲 | |
 
 ---
 
@@ -96,23 +101,21 @@ See [spec.md](spec.md) — not yet in active planning.
 
 ## Current Blockers
 
-<!-- Add blockers here as they come up -->
-_None logged_
+_None. Live Neon DB + real Clerk keys needed before end-to-end auth verification._
 
 ---
 
 ## Upcoming Priorities
 
-<!-- Update each week -->
-1.
-2.
-3.
+1. Wire a real agent (Plan or Code) with live LLM + E2B — replaces stubs with actual output
+2. Credit deduction/refund logic in the pipeline (TODO in `routers/ai.py`)
+3. Projects router + DB (`POST /projects`, project list) so the workspace loads a real project
+4. Chat iteration endpoint (`/ai/iterate`) wired to the chat panel
 
 ---
 
 ## Known Bugs
 
-<!-- Log bugs here as they're discovered -->
 _None logged_
 
 ---
