@@ -61,7 +61,8 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "ANN", "ASYNC", "S", "B", "A", "C4", "T20", "RET", "SIM"]
-ignore = ["ANN101", "ANN102"]
+# B008: FastAPI requires Depends()/Header() calls in argument defaults — idiomatic, not a bug.
+ignore = ["B008"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "ANN"]

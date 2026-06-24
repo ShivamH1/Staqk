@@ -4,7 +4,7 @@ import logging
 import time
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -58,8 +58,9 @@ async def clerk_webhook(
         data = event.get("data", {})
         clerk_id: str = data.get("id", "")
         email_addresses: list[dict[str, Any]] = data.get("email_addresses", [])
+        primary_id = data.get("primary_email_address_id")
         email = next(
-            (e["email_address"] for e in email_addresses if e.get("id") == data.get("primary_email_address_id")),
+            (e["email_address"] for e in email_addresses if e.get("id") == primary_id),
             email_addresses[0]["email_address"] if email_addresses else "",
         )
         if clerk_id and email:

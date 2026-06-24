@@ -1,6 +1,6 @@
-import enum
 import uuid
 from datetime import datetime
+from enum import StrEnum
 
 from sqlalchemy import DateTime, Enum, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 
 
-class Plan(str, enum.Enum):
+class Plan(StrEnum):
     free = "free"
     starter = "starter"
     pro = "pro"

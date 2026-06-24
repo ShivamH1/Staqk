@@ -19,6 +19,10 @@ _jwks_cache: dict[str, Any] | None = None
 bearer_scheme = HTTPBearer()
 
 
+def _unauthorized(detail: str) -> HTTPException:
+    return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=detail)
+
+
 async def _get_jwks() -> dict[str, Any]:
     global _jwks_cache
     if _jwks_cache is None:
@@ -46,7 +50,7 @@ async def _verify_clerk_token(token: str) -> dict[str, Any]:
             jwks = await _get_jwks()
             key = next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
         if key is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unknown token key")
+            raise _unauthorized("Unknown token key")
         payload: dict[str, Any] = jwt.decode(
             token,
             key,
@@ -56,7 +60,7 @@ async def _verify_clerk_token(token: str) -> dict[str, Any]:
         return payload
     except JWTError as exc:
         logger.warning("JWT verification failed: %s", exc)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
+        raise _unauthorized("Invalid token") from exc
 
 
 async def get_current_user(
@@ -66,9 +70,25 @@ async def get_current_user(
     payload = await _verify_clerk_token(credentials.credentials)
     clerk_id: str = payload.get("sub", "")
     if not clerk_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+        raise _unauthorized("Invalid token payload")
 
     user = await user_service.get_by_clerk_id(clerk_id, db)
     if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        raise _unauthorized("User not found")
     return user
+
+
+async def verify_token_get_user(token: str, db: AsyncSession) -> User | None:
+    """Verify a raw token and return the user, or None if invalid.
+
+    Used by the WebSocket handler where the token arrives as a query param and we
+    want to close the socket rather than raise an HTTP exception.
+    """
+    try:
+        payload = await _verify_clerk_token(token)
+    except HTTPException:
+        return None
+    clerk_id: str = payload.get("sub", "")
+    if not clerk_id:
+        return None
+    return await user_service.get_by_clerk_id(clerk_id, db)
