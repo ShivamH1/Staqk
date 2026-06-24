@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[project]
+name = "staqk-backend"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  # Web framework
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.34.0",
+  "websockets>=14.0",
+  # Database
+  "sqlalchemy[asyncio]>=2.0.0",
+  "asyncpg>=0.30.0",
+  "alembic>=1.14.0",
+  # Validation & config
+  "pydantic>=2.10.0",
+  "pydantic-settings>=2.7.0",
+  # Auth
+  "clerk-backend-api>=2.0.0",
+  "python-jose[cryptography]>=3.3.0",
+  # AI
+  "langchain>=0.3.0",
+  "langgraph>=0.3.0",
+  "langchain-google-genai>=2.0.0",
+  "langchain-mistralai>=0.2.0",
+  "langchain-groq>=0.2.0",
+  "langchain-openai>=0.3.0",
+  # Sandbox
+  "e2b>=1.0.0",
+  # Payments
+  "stripe>=11.0.0",
+  # Observability
+  "sentry-sdk[fastapi]>=2.0.0",
+  # Email
+  "resend>=2.0.0",
+  # HTTP client
+  "httpx>=0.28.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "pytest-asyncio>=0.25.0",
+  "pytest-cov>=6.0.0",
+  "httpx>=0.28.0",
+  "ruff>=0.9.0",
+  "mypy>=1.14.0",
+  "types-python-jose",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "ANN", "ASYNC", "S", "B", "A", "C4", "T20", "RET", "SIM"]
+ignore = ["ANN101", "ANN102"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "ANN"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["tests/*", "alembic/*"]
