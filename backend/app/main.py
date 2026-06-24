@@ -26,13 +26,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Routers registered here as they are built
-# from app.routers import auth, projects, ai, payments, public
-# app.include_router(auth.router, prefix="/auth")
-# app.include_router(projects.router, prefix="/projects")
-# app.include_router(ai.router, prefix="/ai")
-# app.include_router(payments.router, prefix="/payments")
-# app.include_router(public.router, prefix="/public")
+from app.routers import auth
+
+app.include_router(auth.router)
 
 
 @app.get("/health")

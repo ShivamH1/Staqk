@@ -47,4 +47,4 @@ class Settings(BaseSettings):
     enable_rag: bool = False
 
 
-settings = Settings()  # type: ignore[call-arg]
+settings = Settings()
