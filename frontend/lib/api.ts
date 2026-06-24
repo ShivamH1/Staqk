@@ -7,10 +7,7 @@ class ApiError extends Error {
   }
 }
 
-export async function apiRequest<T>(
-  path: string,
-  options?: RequestInit,
-): Promise<T> {
+export async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const { auth } = await import('@clerk/nextjs/server')
   const { getToken } = await auth()
   const token = await getToken()
