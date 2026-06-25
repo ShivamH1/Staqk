@@ -88,6 +88,32 @@ Replaced the Plan stub with a live LLM call — the first real agent, chosen bec
 - Added `MAX_OUTPUT_TOKENS = 4096` cap in `models.py` (all providers) — fixes OpenRouter 402 on low-balance accounts that reserve the model's full 65k output budget, and controls cost.
 - ⚠️ The OpenRouter fallback slugs for **code / test / security** agents in `router.py` are still the old-style guesses and likely 404 — update them when those agents go real (verify against `https://openrouter.ai/api/v1/models`).
 
-### Step 6 — (next) Code Agent + E2B 🔲
+### Step 6 — Code Agent + E2B ✅ (2026-06-25)
 
-Wire the Code Agent to a live LLM (Mistral Large) and the E2B sandbox: generate the file tree, write to sandbox, run `npm install && npm run build`, retry on failure (max 2). Heaviest remaining integration. Alternatives: credit logic, or projects router. See progress-tracker.md → Upcoming Priorities.
+Replaced the Code stub with real LLM generation + an E2B sandbox build check.
+
+- **`app/sandbox/e2b.py`** (new): async E2B wrapper. `sandbox_session()` is an `@asynccontextmanager` that creates an `AsyncSandbox` and **always `kill()`s it in `finally`** (per CLAUDE.md: user code runs only in sandboxes, closed in finally). `Sandbox.write_files` writes the `{path: content}` tree under `WORK_DIR=/home/user/app`; `Sandbox.run` executes a command there and returns a `CommandOutcome(exit_code, stdout, stderr, ok)` — a non-zero exit is **returned, not raised** (catches E2B's `CommandExitException`). `SANDBOX_TIMEOUT=300`, `COMMAND_TIMEOUT=240`.
+- **`app/agents/code_agent.py`**: `code_node` now calls Mistral Large (OpenRouter fallback) with `CODE_SYSTEM_PROMPT`, parses a `{path: content}` JSON tree (`parse_file_tree` — tolerates ```json fences, rejects non-object / non-string values), emits `file_created` per file, then `_verify_build` writes the tree to a sandbox and runs `npm install && npm run build`. Outcomes:
+  - build ok → `build_success=True`, clears `error`/`build_error`.
+  - build fails, retries left → `build_success=False`, `build_error`=truncated log, `retry_count+1` (graph routes back to `code`; the log is fed into the next prompt so the model fixes its own output).
+  - build fails, retries exhausted → sets `error`, halting the pipeline.
+  - bad model output / sandbox failure → sets `error`, `build_success=False`.
+- **`app/agents/state.py`**: added `build_error: str | None` (retry context).
+- **`app/agents/graph.py`**: new `_after_code` conditional edge — build ok → `test`, `error` set → `END`, otherwise → `code`. Replaces the unconditional `code → test` edge.
+- **Tests**: `conftest.py` fake model now branches by agent (plan JSON vs file-tree JSON) and gains an autouse **`mock_sandbox`** fixture (+ `fake_sandbox_session(*exit_codes)` helper) so all pipeline/WS tests stay offline. New `tests/test_code_agent.py` covers parsing (plain/fenced/bad shape/non-string), the success path, build-failure-requests-retry, halt-after-retries, and invalid-output.
+
+**Deviations / notes:** Test-failure-driven retries (`_after_test` → `code`) don't yet increment `retry_count`; harmless while the Test Agent is a stub returning `tests_passed=True`, to be fixed when the Test Agent goes real (Step 7). The OpenRouter fallback slugs for **code / test / security** are still unverified and likely 404 — verify against `https://openrouter.ai/api/v1/models` at live-test time.
+
+**Verified (full gate):** ruff check + ruff format (Step 6 files) + mypy strict (28 files) + 19 pytest (incl. 9 code-agent tests, offline full-pipeline, WS).
+
+**Live verified (2026-06-25):** ran Plan → Code against real Mistral Large (direct) + a real E2B sandbox.
+- Plan agent produced a valid plan (~5s). Code agent generated a valid 8-file Next.js tree (`package.json`, `app/layout.tsx`, `app/page.tsx`, `app/globals.css`, `tailwind.config.ts`, `postcss.config.js`, `tsconfig.json`, `next.config.js`) and wrote it to the sandbox.
+- Build-success path verified directly against real E2B with a trivial Node project: `npm install --no-audit --no-fund` + `npm run build` → `build_success=True`.
+- **Fixes made during the live test:**
+  - `parse_file_tree` now serialises object/array values to JSON text — models emit config files (`package.json`, `tsconfig.json`) as nested JSON objects, not strings. Numbers/bools/null are still rejected.
+  - Leaned the install command to `npm install --no-audit --no-fund`.
+- **Infra finding:** the E2B **base template has only ~482MB RAM** (Node 20, npm 10, 2 vCPU). A full Next.js `npm install`/`build` OOMs ("JavaScript heap out of memory"). The Code Agent handled it correctly (captured the log, would retry) but a retry can't fix an OOM. Added a configurable **`E2B_TEMPLATE`** setting (`config.py`) passed to `AsyncSandbox.create(template=...)`; set it to a custom template with ≥2GB RAM to build real Next.js apps. Empty → base template (fine for trivial/non-Next projects).
+
+### Step 7 — (next) Test Agent + E2B 🔲
+
+Wire the Test Agent to Groq Llama: generate Vitest/Playwright tests, run `npx vitest run` in the sandbox, parse `test_results`, and make `_after_test` increment `retry_count` so failing tests route back to Code with context. Alternatives: credit deduction/refund logic, or the projects router. See progress-tracker.md → Upcoming Priorities.

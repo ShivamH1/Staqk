@@ -1,8 +1,8 @@
 # Progress Tracker
 
-**Last updated:** 2026-06-24
+**Last updated:** 2026-06-25
 **Current phase:** Phase 1 MVP
-**Current position:** Phase 1, Step 5 complete (real Plan Agent). Next: Code Agent + E2B, or credit logic, or projects router.
+**Current position:** Phase 1, Step 6 complete (real Code Agent + E2B build check, offline-verified). Next: Test Agent + E2B, or credit logic, or projects router.
 
 Status key: ✅ Done | 🟡 Partial / stub | 🔲 Not started | 🔴 Blocked
 
@@ -32,8 +32,8 @@ Status key: ✅ Done | 🟡 Partial / stub | 🔲 Not started | 🔴 Blocked
 | LangGraph state schema + graph setup | ✅ | `AgentState`, conditional edges (retry/security gating) |
 | Model factory (provider + OpenRouter fallback) | ✅ | `agents/models.py` — Gemini/Mistral/Groq direct or OpenRouter |
 | Plan Agent (Gemini Flash) | ✅ | Real LLM call + JSON parse; error path handled |
-| Code Agent (Mistral Large) | 🟡 | Stub node; no generation/E2B yet |
-| E2B sandbox integration (Python SDK) | 🔲 | |
+| Code Agent (Mistral Large) | ✅ | Real generation + sandbox build check; build-fail retries (max 2). Not live-verified (no E2B/Mistral key) |
+| E2B sandbox integration (Python SDK) | ✅ | `app/sandbox/e2b.py` async wrapper; `sandbox_session()` kills in finally. Live test pending an E2B key |
 | Test Agent (Groq Llama) | 🟡 | Stub node |
 | Security Agent (Semgrep + Mistral Small) | 🟡 | Stub node |
 | Deploy Agent (Vercel API) | 🟡 | Stub node returns placeholder URL |
@@ -70,7 +70,7 @@ Status key: ✅ Done | 🟡 Partial / stub | 🔲 Not started | 🔴 Blocked
 | F-01 User authentication | ✅ | Backend + frontend wired; needs live Clerk+Neon to verify e2e |
 | F-02 Natural language generation | 🟡 | Pipeline + WS + workspace UI in place; agents are stubs |
 | F-03 Tech stack selection | 🔲 | |
-| F-04 Multi-file code generation | 🟡 | Code Agent stub only |
+| F-04 Multi-file code generation | 🟡 | Code Agent real (gen + build check); needs live keys + Test/Security/Deploy real |
 | F-05 File tree + Monaco editor | 🔲 | |
 | F-06 Live preview | 🔲 | |
 | F-07 Chat iteration | 🔲 | |
@@ -108,10 +108,11 @@ _None. Live Neon DB + real Clerk keys needed before end-to-end auth verification
 
 ## Upcoming Priorities
 
-1. Code Agent with live LLM + E2B sandbox (generate files, verify build) — the heaviest remaining integration
+1. Test Agent with live Groq Llama + E2B (`npx vitest run`); make `_after_test` increment `retry_count` so failing tests route back to Code with context
 2. Credit deduction/refund logic in the pipeline (TODO in `routers/ai.py`)
 3. Projects router + DB (`POST /projects`, project list) so the workspace loads a real project
 4. Chat iteration endpoint (`/ai/iterate`) wired to the chat panel
+5. Live-verify the Code Agent end-to-end once an `E2B_API_KEY` (+ verified code model slug) is available
 
 ---
 
