@@ -71,6 +71,9 @@ MISTRAL_API_KEY=...
 
 # ── E2B ────────────────────────────────────────────────────────
 E2B_API_KEY=e2b_...
+# Optional: custom sandbox template id with more RAM/CPU than the ~512MB base.
+# Required to build real Next.js apps (the base template OOMs on npm install/build).
+E2B_TEMPLATE=
 
 # ── Vercel ─────────────────────────────────────────────────────
 VERCEL_ACCESS_TOKEN=...

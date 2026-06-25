@@ -31,6 +31,9 @@ class Settings(BaseSettings):
 
     # E2B
     e2b_api_key: str
+    # Custom sandbox template id (more RAM/CPU than the 512MB base — needed for
+    # Next.js builds). Empty → E2B's default base template.
+    e2b_template: str = ""
 
     # Vercel
     vercel_access_token: str = ""

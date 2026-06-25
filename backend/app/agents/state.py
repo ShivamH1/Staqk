@@ -14,6 +14,7 @@ class AgentState(TypedDict, total=False):
     # Code Agent output
     file_tree: dict[str, str]
     build_success: bool
+    build_error: str | None  # truncated build log, fed back on retry
 
     # Test Agent output
     test_results: list[dict[str, Any]]

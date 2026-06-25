@@ -11,6 +11,20 @@ from app.agents.state import MAX_CODE_RETRIES, AgentState
 from app.agents.test_agent import test_node
 
 
+def _after_code(state: AgentState) -> str:
+    """Route after the Code Agent.
+
+    - build succeeds            → test
+    - build fails, error set     → end (parse/sandbox failure or retries exhausted)
+    - build fails, retry pending → back to code (with build_error as context)
+    """
+    if state.get("build_success"):
+        return "test"
+    if state.get("error"):
+        return END
+    return "code"
+
+
 def _after_test(state: AgentState) -> str:
     """Route after the Test Agent.
 
@@ -43,7 +57,7 @@ def build_graph() -> CompiledStateGraph[AgentState, Any, AgentState, AgentState]
 
     graph.add_edge(START, "plan")
     graph.add_edge("plan", "code")
-    graph.add_edge("code", "test")
+    graph.add_conditional_edges("code", _after_code, ["code", "test", END])
     graph.add_conditional_edges("test", _after_test, ["code", "security", END])
     graph.add_conditional_edges("security", _after_security, ["deploy", END])
     graph.add_edge("deploy", END)
