@@ -68,6 +68,26 @@ Built the workspace that consumes the Step 3 WebSocket stream end-to-end.
 
 **Verified (full gate):** biome (exit 0) + tsc (exit 0) + 9 vitest (2 files, incl. pipeline-reducer) + `next build` (5 routes incl. `/workspace/[id]`).
 
-### Step 5 — (next) Real agent or credit logic 🔲
+### Step 5 — Real Plan Agent ✅ (2026-06-24)
 
-Candidates: wire the Plan or Code agent to a live LLM (+ E2B for Code), add credit deduction/refund, or build the projects router so the workspace loads a real project. See progress-tracker.md → Upcoming Priorities.
+Replaced the Plan stub with a live LLM call — the first real agent, chosen because it needs no E2B (pure generation), so it validates the LangChain provider wiring + model routing in isolation.
+
+- **`agents/models.py`**: `get_chat_model(agent)` builds the direct-provider chat model when its key is set (Gemini `ChatGoogleGenerativeAI`, Mistral `ChatMistralAI`, Groq `ChatGroq`), else falls back to OpenRouter via `ChatOpenAI(base_url=openrouter)` — per ADR-010. Keys wrapped in `SecretStr`. Provider modules imported lazily inside the factory.
+- **`agents/plan_agent.py`**: `plan_node` now calls the model with `PLAN_SYSTEM_PROMPT` (from ai-pipeline.md) + a user prompt built from `user_message` + `tech_stack`. `parse_plan_json` tolerates ```json fences and content-block lists. Errors (bad JSON / provider failure) emit `agent_error` and set `state.error` instead of crashing the pipeline.
+- **`events.py`**: `emit()` now no-ops when there's no active LangGraph stream context (`get_stream_writer()` raises outside a run) — so nodes are callable directly in unit tests.
+- **`tests/conftest.py`** (new): centralised dummy env + an **autouse `mock_chat_model`** fixture that replaces `get_chat_model` with a fake returning a valid plan JSON — keeps all pipeline/WS tests offline. `fake_model_returning()` helper lets a test supply a specific response.
+- **`tests/test_plan_agent.py`**: covers JSON parsing (plain + fenced), the happy path, and the bad-JSON error path.
+
+**Deviations / notes:** Runtime rate-limit fallback (primary → OpenRouter on 429) is deferred — current logic picks OpenRouter only when the direct provider key is absent. Real LLM calls require actual API keys; tests mock the model so no network/credits are used.
+
+**Verified (full gate):** ruff + mypy (26 files) + 10 pytest (incl. plan agent + offline full-pipeline + WS).
+
+**Live verified (2026-06-24):** ran the pipeline once against the real model with `OPENROUTER_API_KEY` set in `backend/.env.local`. The Plan agent produced a valid architecture plan for "build a todo app" (Todo model, REST endpoints, routes). Fixes made during this live test:
+- `config.py` now reads `(".env", ".env.local")` so either backend env file works.
+- Updated Plan model slugs to current ones: direct `gemini-2.5-flash`, OpenRouter fallback `google/gemini-3.1-flash-lite` (the old `google/gemini-flash-1.5` returned 404 "no endpoints").
+- Added `MAX_OUTPUT_TOKENS = 4096` cap in `models.py` (all providers) — fixes OpenRouter 402 on low-balance accounts that reserve the model's full 65k output budget, and controls cost.
+- ⚠️ The OpenRouter fallback slugs for **code / test / security** agents in `router.py` are still the old-style guesses and likely 404 — update them when those agents go real (verify against `https://openrouter.ai/api/v1/models`).
+
+### Step 6 — (next) Code Agent + E2B 🔲
+
+Wire the Code Agent to a live LLM (Mistral Large) and the E2B sandbox: generate the file tree, write to sandbox, run `npm install && npm run build`, retry on failure (max 2). Heaviest remaining integration. Alternatives: credit logic, or projects router. See progress-tracker.md → Upcoming Priorities.

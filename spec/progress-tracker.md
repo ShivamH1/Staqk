@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-06-24
 **Current phase:** Phase 1 MVP
-**Current position:** Phase 1, Step 4 complete (Workspace UI). Next: wire a real agent (Plan/Code) or credit logic.
+**Current position:** Phase 1, Step 5 complete (real Plan Agent). Next: Code Agent + E2B, or credit logic, or projects router.
 
 Status key: ✅ Done | 🟡 Partial / stub | 🔲 Not started | 🔴 Blocked
 
@@ -30,7 +30,8 @@ Status key: ✅ Done | 🟡 Partial / stub | 🔲 Not started | 🔴 Blocked
 | Task | Status | Notes |
 |------|--------|-------|
 | LangGraph state schema + graph setup | ✅ | `AgentState`, conditional edges (retry/security gating) |
-| Plan Agent (Gemini Flash) | 🟡 | Stub node emits events; no LLM call yet |
+| Model factory (provider + OpenRouter fallback) | ✅ | `agents/models.py` — Gemini/Mistral/Groq direct or OpenRouter |
+| Plan Agent (Gemini Flash) | ✅ | Real LLM call + JSON parse; error path handled |
 | Code Agent (Mistral Large) | 🟡 | Stub node; no generation/E2B yet |
 | E2B sandbox integration (Python SDK) | 🔲 | |
 | Test Agent (Groq Llama) | 🟡 | Stub node |
@@ -107,7 +108,7 @@ _None. Live Neon DB + real Clerk keys needed before end-to-end auth verification
 
 ## Upcoming Priorities
 
-1. Wire a real agent (Plan or Code) with live LLM + E2B — replaces stubs with actual output
+1. Code Agent with live LLM + E2B sandbox (generate files, verify build) — the heaviest remaining integration
 2. Credit deduction/refund logic in the pipeline (TODO in `routers/ai.py`)
 3. Projects router + DB (`POST /projects`, project list) so the workspace loads a real project
 4. Chat iteration endpoint (`/ai/iterate`) wired to the chat panel

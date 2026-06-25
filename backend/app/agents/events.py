@@ -14,9 +14,13 @@ def emit(event: dict[str, Any]) -> None:
     """Write a custom event to the LangGraph stream.
 
     Consumed by the WebSocket handler via `graph.astream(..., stream_mode="custom")`.
-    Safe to call inside a node; no-op if there is no active stream writer.
+    Safe to call inside a node; no-op when there is no active stream context
+    (e.g. a node invoked directly in a unit test).
     """
-    writer = get_stream_writer()
+    try:
+        writer = get_stream_writer()
+    except RuntimeError:
+        return
     if writer is not None:
         writer(event)
 
