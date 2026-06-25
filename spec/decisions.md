@@ -88,21 +88,23 @@ Each ADR documents a settled technical choice. Re-read before reopening a discus
 
 ---
 
-## ADR-008: GSAP + Framer Motion + Locomotive Scroll (Scoped Roles)
+## ADR-008: GSAP + Framer Motion + Lenis (Scoped Roles)
 
-**Status:** Accepted
+**Status:** Accepted (amended 2026-06-25 — Lenis replaces Locomotive Scroll)
 
 **Decision:** Use all three animation libraries, each with a distinct non-overlapping role.
 
-**Considered:** GSAP only, Framer Motion only, CSS transitions only
+**Considered:** GSAP only, Framer Motion only, CSS transitions only, Locomotive Scroll
 
-**Rationale:** Each library excels in a different domain. GSAP handles complex timeline sequences, canvas/WebGL, and scroll-triggered animations that would be verbose in Framer. Framer Motion is idiomatic React — layout animations, enter/exit transitions, and drag are first-class. Locomotive Scroll provides smooth native-feeling scroll and parallax that neither GSAP nor Framer handles cleanly out of the box. The key rule: **no library crosses into another's domain.** This prevents bloat and conflicts.
+**Rationale:** Each library excels in a different domain. GSAP handles complex timeline sequences, canvas/WebGL, and scroll-triggered animations that would be verbose in Framer. Framer Motion is idiomatic React — layout animations, enter/exit transitions, and drag are first-class. **Lenis** provides smooth native-feeling scroll that neither GSAP nor Framer handles cleanly out of the box. The key rule: **no library crosses into another's domain.** This prevents bloat and conflicts.
+
+**Amendment (2026-06-25):** The original choice was Locomotive Scroll, but it has friction with React 19 / Next 16 (it predates the App Router and fights server-rendered layout). We switched to **Lenis** — by the same studio (Darkroom (Engineering)/studio-freight), actively maintained, framework-agnostic, and the library Locomotive itself now builds on. Role is unchanged: full-page smooth scroll on **marketing pages only**, mounted via a `'use client'` component that drives Lenis's RAF loop and honors `prefers-reduced-motion`.
 
 | Library | Domain |
 |---------|--------|
 | GSAP | Complex timelines, SVG morphing, canvas, scroll-triggered |
 | Framer Motion | React component transitions, layout animations, page transitions |
-| Locomotive Scroll | Full-page smooth scroll, parallax, scroll-progress |
+| Lenis | Full-page smooth scroll (marketing pages only) |
 
 ---
 

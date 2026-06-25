@@ -139,6 +139,29 @@ Building the public landing page step by step. Reference vibe is borrowed from t
 
 **Verified (full gate):** biome check (31 files) + tsc (clean) + `next build` (5 routes, `/` static).
 
-### Step F2 — (next) Keyboard animation section 🔲
+### Step F2 — Keyboard animation section ✅ (2026-06-25)
 
-Port the reference `features.tsx` keyboard visual (Framer Motion key-pulse) + typing-text effect into a dark section below the hero, styled to design.md. Then Step F3: Lenis smooth scroll.
+- **`components/marketing/features.tsx`** (new, `'use client'`): ported the reference keyboard visual + typing-text effect, restyled to design.md.
+  - `useTypingAnimation` hook (cleaned up: interval id captured and cleared in the effect cleanup) types example prompts char-by-char.
+  - `KeyboardVisual`: 3 rows of keys that gently pulse opacity via Framer Motion (`repeat: Infinity`, staggered `delay`). Restyled to tokens — outer `bg-surface-1` `rounded-[20px]`, inner `bg-surface-2` `rounded-[10px]`, keys `bg-canvas` `border-hairline` `rounded-[6px]`. Keys shrink on mobile (`h-8 w-8` → `md:h-10 md:w-10`).
+  - Section reveal via Framer Motion `useInView` (`once: true`). Staqk-specific copy: eyebrow "How it works", headline "Describe it. Watch it ship.", with two typed prompts inline.
+- **`app/page.tsx`**: restructured into a scrollable page — hero is now a `min-h-[calc(100vh-3.5rem)]` section, `<Features />` sits below it. Root switched to `overflow-x-hidden` (was `overflow-hidden`) so the page scrolls vertically while the fixed Background3D persists behind both bands. The Features section is `bg-canvas` so it reads as a solid dark band over the 3D as you scroll past the hero.
+
+**Deviations / notes:** Animation domains respected — Framer Motion for these React component transitions (per CLAUDE.md). Keyboard is ambient/decorative (no real key-to-text wiring). Smooth scroll (Lenis) is the next step.
+
+**Verified (full gate):** biome check (32 files) + tsc (clean) + `next build` (5 routes, `/` static).
+
+### Step F3 — Lenis smooth scroll ✅ (2026-06-25)
+
+- Installed `lenis@1.3`.
+- **`components/marketing/smooth-scroll.tsx`** (new, `'use client'`): mounts Lenis on the window scroll, drives its RAF loop, imports `lenis/dist/lenis.css`, and **destroys on unmount**. `duration: 1.1` with a cubic ease-out. **Honors `prefers-reduced-motion`** — bails out entirely so reduced-motion users keep native scroll. Renders `null`.
+- **`app/page.tsx`**: rendered `<SmoothScroll />` at the top of the landing tree — scoped to the marketing route only (not workspace/dashboard), per the animation-domain rule.
+- **Docs updated Locomotive → Lenis:** `decisions.md` ADR-008 (amended with rationale: Locomotive has React 19 / Next 16 friction; Lenis is by the same studio, maintained, framework-agnostic, and what Locomotive now builds on), `CLAUDE.md` animation-domains line, `README.md` stack table, `prompting-guide.md` context header, `progress-tracker.md` row.
+
+**Deviations / notes:** Anchor links (e.g. "See how it works" → `#product`) still use native jump — Lenis-driven `scrollTo` for in-page anchors can be added later if desired.
+
+**Verified (full gate):** biome check (33 files) + tsc (clean) + `next build` (5 routes, `/` static).
+
+### Step F4 — (next) more landing sections / polish 🔲
+
+Candidates: features/benefits band, gradient spotlight cards (design.md signature), pricing teaser, footer; or anchor-aware Lenis `scrollTo`. Decide scope next.

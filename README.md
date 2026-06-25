@@ -100,7 +100,7 @@ See [openspec-guide.md](openspec-guide.md) for the full workflow.
 | Layer | Stack |
 |-------|-------|
 | Frontend | Next.js 15, TypeScript, Tailwind CSS, shadcn/ui |
-| Animations | GSAP (timelines), Framer Motion (transitions), Locomotive Scroll (scroll) |
+| Animations | GSAP (timelines), Framer Motion (transitions), Lenis (smooth scroll) |
 | Backend | Python 3.12, FastAPI, SQLAlchemy async, Alembic |
 | AI | LangGraph + LangChain, MistralAI, Groq, Gemini, OpenRouter |
 | Database | Neon (PostgreSQL, serverless) |

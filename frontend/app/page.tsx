@@ -1,18 +1,21 @@
 import Background3D from '@/components/marketing/background-3d'
+import Features from '@/components/marketing/features'
 import Navbar from '@/components/marketing/navbar'
+import SmoothScroll from '@/components/marketing/smooth-scroll'
 
 export default function Home() {
   return (
-    <div className="relative min-h-screen w-full overflow-hidden">
-      {/* Rotating WebGL city backdrop */}
+    <div className="relative w-full overflow-x-hidden">
+      <SmoothScroll />
+      {/* Rotating WebGL city backdrop (fixed — persists as the page scrolls) */}
       <Background3D className="z-0" />
       {/* Legibility scrim — subtle, keeps the color cycling visible */}
       <div className="pointer-events-none fixed inset-0 z-0 bg-gradient-to-b from-black/30 via-transparent to-canvas/80" />
 
-      <div className="relative z-10 flex min-h-screen flex-col">
+      <div className="relative z-10 flex flex-col">
         <Navbar />
 
-        <main className="flex flex-1 flex-col items-center justify-center px-4 text-center md:px-8">
+        <section className="flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-center px-4 text-center md:px-8">
           <span className="mb-6 rounded-pill bg-surface-1/60 px-4 py-1.5 text-xs font-medium tracking-[-0.01em] text-ink-muted backdrop-blur-sm">
             Security-first multi-agent AI app builder
           </span>
@@ -40,7 +43,9 @@ export default function Home() {
               See how it works
             </a>
           </div>
-        </main>
+        </section>
+
+        <Features />
       </div>
     </div>
   )

@@ -8,7 +8,7 @@ Paste this context header at the start of every AI coding session:
 Project: Staqk — security-first, multi-agent AI app builder
 Stack:
   Frontend: Next.js 15, TypeScript strict, Tailwind CSS, shadcn/ui
-  Animations: GSAP (timelines/scroll), Framer Motion (React transitions), Locomotive Scroll (marketing pages)
+  Animations: GSAP (timelines/scroll), Framer Motion (React transitions), Lenis (smooth scroll, marketing pages)
   Backend: Python 3.12, FastAPI (async), SQLAlchemy async + Alembic
   AI: LangGraph + LangChain, providers: MistralAI, Groq, Gemini, OpenRouter
   DB: Neon (PostgreSQL, asyncpg)

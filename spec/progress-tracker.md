@@ -50,7 +50,7 @@ Status key: ✅ Done | 🟡 Partial / stub | 🔲 Not started | 🔴 Blocked
 | Chat panel + iteration flow | 🟡 | `ChatPanel` sends initial message; `/ai/iterate` not wired |
 | Agent progress pipeline UI | ✅ | `AgentProgressBar` consumes WS events via `usePipeline` |
 | Version history panel | 🔲 | |
-| GSAP + Framer Motion + Locomotive setup | 🟡 | GSAP + Framer installed; Locomotive + GT Walsheim font not wired |
+| GSAP + Framer Motion + Lenis setup | 🟡 | Framer Motion (keyboard) + Lenis smooth scroll wired on landing; GSAP + GT Walsheim font not yet used |
 | Design tokens foundation | ✅ | design.md tokens in globals.css (`bg-canvas`, `text-ink`, etc.); Inter + JetBrains Mono loaded |
 
 ### Dashboard & Billing
