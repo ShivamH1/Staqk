@@ -17,7 +17,7 @@ class ModelChoice:
 
 
 ROUTING: dict[AgentName, ModelChoice] = {
-    "plan": ModelChoice("gemini", "gemini-1.5-flash", "google/gemini-flash-1.5"),
+    "plan": ModelChoice("gemini", "gemini-2.5-flash", "google/gemini-3.1-flash-lite"),
     "code": ModelChoice("mistral", "mistral-large-latest", "mistralai/mistral-large"),
     "test": ModelChoice("groq", "llama-3.1-70b-versatile", "meta-llama/llama-3.1-70b-instruct"),
     "security": ModelChoice("mistral", "mistral-small-latest", "mistralai/mistral-small"),
