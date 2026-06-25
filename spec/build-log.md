@@ -114,6 +114,31 @@ Replaced the Code stub with real LLM generation + an E2B sandbox build check.
   - Leaned the install command to `npm install --no-audit --no-fund`.
 - **Infra finding:** the E2B **base template has only ~482MB RAM** (Node 20, npm 10, 2 vCPU). A full Next.js `npm install`/`build` OOMs ("JavaScript heap out of memory"). The Code Agent handled it correctly (captured the log, would retry) but a retry can't fix an OOM. Added a configurable **`E2B_TEMPLATE`** setting (`config.py`) passed to `AsyncSandbox.create(template=...)`; set it to a custom template with ≥2GB RAM to build real Next.js apps. Empty → base template (fine for trivial/non-Next projects).
 
-### Step 7 — (next) Test Agent + E2B 🔲
+### Step 7 — (next, backend) Test Agent + E2B 🔲
 
 Wire the Test Agent to Groq Llama: generate Vitest/Playwright tests, run `npx vitest run` in the sandbox, parse `test_results`, and make `_after_test` increment `retry_count` so failing tests route back to Code with context. Alternatives: credit deduction/refund logic, or the projects router. See progress-tracker.md → Upcoming Priorities.
+
+---
+
+## Frontend — Marketing landing (parallel track)
+
+Building the public landing page step by step. Reference vibe is borrowed from the separate `D:\Product-SAAS\staqk` prototype (only the rotating 3D background + the keyboard animation), reconciled with [design.md](design.md).
+
+**Decisions (2026-06-25):**
+- **Smooth scroll → Lenis**, not Locomotive Scroll (which design.md/CLAUDE.md name). Locomotive has friction with React 19 / Next 16; Lenis is its modern successor. design.md's animation-domain rule should be updated to say Lenis when it's wired (Step F3).
+- **Background-3D keeps the tinted color cycling** from the reference (navy→purple→teal→…) rather than being muted to strict `#090909` monochrome — a deliberate, user-approved bend of design.md's monochrome rule for atmosphere.
+
+### Step F1 — Background-3D + hero shell ✅ (2026-06-25)
+
+- Installed `three@0.185` + `@types/three`.
+- **`components/marketing/background-3d.tsx`** (new, `'use client'`): the reference Three.js rotating wireframe-city — 100 buildings, 300 particles, 60 "cars", fog, color cycling, cursor parallax on ≥1280px (auto-rotate below). Adapted to our Biome style; added `renderer.setPixelRatio(min(dpr, 2))` for crisp-but-smooth rendering; disposes geometries/materials/renderer on unmount. Renders `fixed inset-0`.
+- **`components/marketing/navbar.tsx`** (new): design.md `top-nav` (56px) — wordmark left, center links, `Sign in` (charcoal pill → `/sign-in`) + `Get started` (white pill → `/sign-up`).
+- **`app/page.tsx`**: replaced the Next boilerplate with the dark hero shell — fixed Background3D backdrop (`z-0`) + a subtle legibility scrim, content at `z-10`: eyebrow chip, `Build. Secure. Ship.` display headline (Inter substitute, `tracking-[-0.05em]`, `leading-[0.95]`), ink-muted subhead, white-pill + charcoal-pill CTAs.
+
+**Deviations / notes:** GT Walsheim is paid — display type uses Inter with tight negative tracking per design.md's substitution note. The keyboard animation (reference `features.tsx`) and Lenis smooth scroll are later steps (F2, F3).
+
+**Verified (full gate):** biome check (31 files) + tsc (clean) + `next build` (5 routes, `/` static).
+
+### Step F2 — (next) Keyboard animation section 🔲
+
+Port the reference `features.tsx` keyboard visual (Framer Motion key-pulse) + typing-text effect into a dark section below the hero, styled to design.md. Then Step F3: Lenis smooth scroll.
