@@ -1,8 +1,8 @@
 # Progress Tracker
 
-**Last updated:** 2026-06-25
+**Last updated:** 2026-06-26
 **Current phase:** Phase 1 MVP
-**Current position:** Phase 1, Step 7 complete (real Test Agent + Vitest in E2B, offline-verified). Next: Security Agent + Semgrep, or credit logic, or projects router. (Frontend landing parked at F3.)
+**Current position:** Phase 1, Step 8 complete (real Security Agent — Semgrep in E2B + Mistral-Small auto-fix, halt on critical, offline-verified). The full AI-pipeline logic (Plan→Code→Test→Security) is now real; Deploy remains a stub. Next: credit deduction/refund logic, or projects router. (Frontend landing parked at F3.)
 
 Status key: ✅ Done | 🟡 Partial / stub | 🔲 Not started | 🔴 Blocked
 
@@ -35,7 +35,7 @@ Status key: ✅ Done | 🟡 Partial / stub | 🔲 Not started | 🔴 Blocked
 | Code Agent (Mistral Large) | ✅ | Real generation + sandbox build check; build-fail retries (max 2). Not live-verified (no E2B/Mistral key) |
 | E2B sandbox integration (Python SDK) | ✅ | `app/sandbox/e2b.py` async wrapper; `sandbox_session()` kills in finally. Live test pending an E2B key |
 | Test Agent (Groq Llama) | ✅ | Real Vitest gen + sandbox run; test-fail retries back to Code. Not live-verified (E2B RAM) |
-| Security Agent (Semgrep + Mistral Small) | 🟡 | Stub node |
+| Security Agent (Semgrep + Mistral Small) | ✅ | Real Semgrep scan in E2B + Mistral-Small auto-fix; halt on critical. Not live-verified (E2B RAM) |
 | Deploy Agent (Vercel API) | 🟡 | Stub node returns placeholder URL |
 | WebSocket streaming (agent events → frontend) | ✅ | `WS /ai/stream/{id}`, token query-param auth, custom stream |
 | Credit deduction + refund logic | 🔲 | TODO marker in `routers/ai.py` |
@@ -77,7 +77,7 @@ Status key: ✅ Done | 🟡 Partial / stub | 🔲 Not started | 🔴 Blocked
 | F-08 Version history | 🔲 | |
 | F-09 Stripe credits + billing | 🔲 | |
 | F-10 Vercel deployment | 🟡 | Deploy Agent stub only |
-| F-11 Security scanning | 🟡 | Security Agent stub only |
+| F-11 Security scanning | 🟡 | Security Agent real (Semgrep + auto-fix); needs live E2B to verify e2e |
 | F-12 Neon DB provisioning | 🔲 | |
 
 ---
@@ -108,12 +108,11 @@ _None. Live Neon DB + real Clerk keys needed before end-to-end auth verification
 
 ## Upcoming Priorities
 
-1. Security Agent with Semgrep in E2B (`semgrep --config=auto --json`); parse by severity, auto-fix medium/high via Mistral Small, halt on critical
-2. Credit deduction/refund logic in the pipeline (TODO in `routers/ai.py`)
-3. Projects router + DB (`POST /projects`, project list) so the workspace loads a real project
-4. Chat iteration endpoint (`/ai/iterate`) wired to the chat panel
-5. Live-verify the Code + Test agents end-to-end once an `E2B_TEMPLATE` (≥2GB) + verified model slugs are available
-6. Resume frontend landing (parked at F3): pipeline section, footer, anchor-aware Lenis
+1. Credit deduction/refund logic in the pipeline (TODO in `routers/ai.py`): pre-check (402 if short), atomic deduct + `AIUsageLog` in one transaction, `Transaction(type=refund)` on failure
+2. Projects router + DB (`POST /projects`, project list) so the workspace loads a real project
+3. Chat iteration endpoint (`/ai/iterate`) wired to the chat panel
+4. Live-verify the Code + Test + Security agents end-to-end once an `E2B_TEMPLATE` (≥2GB) + verified model slugs are available
+5. Resume frontend landing (parked at F3): pipeline section, footer, anchor-aware Lenis
 
 ---
 

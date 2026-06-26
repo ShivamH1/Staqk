@@ -134,9 +134,28 @@ Replaced the Test stub with real Groq-Llama test generation + Vitest execution i
 
 **Not live-verified:** same E2B base-template RAM limit as Step 6 — `npm install` + `npx vitest` on a real Next.js app needs the larger `E2B_TEMPLATE`. Logic is exercised offline via the mocked sandbox.
 
-### Step 8 — (next, backend) Security Agent + Semgrep 🔲
+### Step 8 — Security Agent + Semgrep ✅ (2026-06-26)
 
-Wire the Security Agent to Semgrep in E2B (`semgrep --config=auto --json`), parse findings by severity, auto-fix medium/high via Mistral Small, halt on critical. Alternatives: credit deduction/refund logic, or the projects router. See progress-tracker.md → Upcoming Priorities.
+Replaced the Security stub with a real Semgrep scan in E2B + Mistral-Small auto-fix.
+
+- **`app/agents/security_agent.py`**: `security_node` writes `file_tree` to an E2B sandbox and runs `python3 -m pip install --quiet semgrep && semgrep --config=auto --json .`. Semgrep exits **1 when it finds issues**, so the JSON on stdout is authoritative — `parse_findings` reads `data["results"]`, not the exit code. Each result is normalised by `_normalize_severity` onto a single scale (info/low/medium/high/critical): it prefers an explicit `extra.metadata.severity`/`impact` (so a rule tagged `CRITICAL` is honoured), else maps the CLI `extra.severity` (`ERROR→high`, `WARNING→medium`, `INFO→low`). Outcomes:
+  - **critical present** → `_halt`: `security_cleared=False` + `error` set, pipeline ends (graph `_after_security` only routes `deploy`/`END`).
+  - **medium/high present, no critical** → one auto-fix pass: Mistral Small (`SECURITY_SYSTEM_PROMPT`) returns the FULL corrected tree (reuses `code_agent.parse_file_tree`), merged over `file_tree`, then **re-scanned once**. If the re-scan surfaces a critical → halt (carrying the fixed `file_tree`); otherwise clear with the post-fix findings and the updated `file_tree`.
+  - **only low/info, or clean** → `security_cleared=True`, findings logged.
+  - bad fix output → non-critical, so log and continue (don't block on an unfixable medium). Sandbox/network failure or unparseable scan → `error`, `security_cleared=False`.
+  - emits a `security_finding` event per non-info finding.
+- Unlike Code/Test, the Security Agent runs its **own** in-place fix+rescan rather than routing back through Code — the graph edge out of `security` only leads to `deploy` or `END`. Model routing already had `security → mistral-small-latest` (OpenRouter `mistralai/mistral-small`).
+- **Tests**: `conftest.py` — fake model gains a `security` branch (returns a corrected tree); `_FakeSandbox.run` returns `{"results": []}` for any `semgrep` command (clean scan keeps the full-pipeline test green); new `_ScriptedSandbox` + `fake_semgrep_session(*scans)` helper scripts successive scan/rescan stdout; `mock_sandbox` now also patches `app.agents.security_agent.sandbox_session`. New `tests/test_security_agent.py` (8 tests): severity normalisation, non-semgrep output rejected, clean→clear, critical→halt, medium→autofix→clean-rescan, medium→autofix→critical-rescan→halt, scan-failure→error, low→pass-through.
+
+**Deviations / notes:** Auto-fix is a single pass + one re-scan (per ai-pipeline.md step 6), not a loop — persistent medium/high after one fix are logged, not retried (only critical halts). Semgrep is `pip install`ed at scan time (no-op if the template ships it); on the larger `E2B_TEMPLATE` this should be baked in. OpenRouter fallback slug `mistralai/mistral-small` still unverified.
+
+**Verified (full gate):** ruff check (app/tests) + mypy strict (28 files) + 33 pytest (incl. 8 security-agent tests, offline full-pipeline, WS).
+
+**Not live-verified:** same E2B base-template RAM limit as Steps 6–7 — a real Semgrep run on a full tree needs the larger `E2B_TEMPLATE`. Logic is exercised offline via the scripted sandbox.
+
+### Step 9 — (next, backend) Credit deduction + refund logic 🔲
+
+Wire the credit check-before / atomic-deduct / refund-on-failure path (TODO in `routers/ai.py`): 402 if insufficient, deduct + `AIUsageLog` inside one transaction, `Transaction(type=refund)` on pipeline failure. Alternatives: projects router + DB, or chat iteration endpoint. See progress-tracker.md → Upcoming Priorities.
 
 ---
 

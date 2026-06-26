@@ -68,6 +68,9 @@ def mock_chat_model(monkeypatch: pytest.MonkeyPatch) -> None:
             return _FakeModel(json.dumps(_FAKE_FILE_TREE))
         if agent == "test":
             return _FakeModel(json.dumps(_FAKE_TEST_TREE))
+        if agent == "security":
+            # The security agent returns a corrected file tree; reuse the same shape.
+            return _FakeModel(json.dumps(_FAKE_FILE_TREE))
         return _FakeModel(json.dumps(_FAKE_PLAN))
 
     monkeypatch.setattr("app.agents.models.get_chat_model", fake_get_chat_model)
@@ -95,6 +98,9 @@ class _FakeSandbox:
     async def run(self, cmd: str, timeout: float = 240) -> Any:  # noqa: ASYNC109
         from app.sandbox.e2b import CommandOutcome
 
+        if "semgrep" in cmd:
+            # Default clean scan: Semgrep exits 0 with no results.
+            return CommandOutcome(exit_code=0, stdout='{"results": []}', stderr="")
         code = self._exit_codes.pop(0) if self._exit_codes else 0
         stderr = "" if code == 0 else f"command failed: {cmd}"
         return CommandOutcome(exit_code=code, stdout="output", stderr=stderr)
@@ -110,8 +116,47 @@ def fake_sandbox_session(*exit_codes: int) -> Any:
     return _session
 
 
+class _ScriptedSandbox:
+    """Sandbox whose `run` returns a fixed stdout — used to script Semgrep output."""
+
+    def __init__(self, stdout: str, exit_code: int = 0) -> None:
+        self._stdout = stdout
+        self._exit_code = exit_code
+        self.written: dict[str, str] = {}
+
+    async def write_files(self, files: dict[str, str]) -> None:
+        self.written.update(files)
+
+    async def read_file(self, path: str) -> str:
+        return self.written.get(path, "")
+
+    async def run(self, cmd: str, timeout: float = 240) -> Any:  # noqa: ASYNC109
+        from app.sandbox.e2b import CommandOutcome
+
+        return CommandOutcome(exit_code=self._exit_code, stdout=self._stdout, stderr="")
+
+
+def fake_semgrep_session(*scans: str | dict[str, Any]) -> Any:
+    """Yield a sandbox per session returning successive Semgrep stdout payloads.
+
+    Each item is a JSON string or a dict (serialised). The last item is reused if
+    there are more sandbox sessions (e.g. scan + re-scan) than payloads.
+    """
+    payloads = [s if isinstance(s, str) else json.dumps(s) for s in scans] or ['{"results": []}']
+    state = {"i": 0}
+
+    @asynccontextmanager
+    async def _session() -> AsyncIterator[_ScriptedSandbox]:
+        idx = min(state["i"], len(payloads) - 1)
+        state["i"] += 1
+        yield _ScriptedSandbox(payloads[idx])
+
+    return _session
+
+
 @pytest.fixture(autouse=True)
 def mock_sandbox(monkeypatch: pytest.MonkeyPatch) -> None:
     """Patch the Code + Test agents' sandboxes so they succeed without hitting E2B."""
     monkeypatch.setattr("app.agents.code_agent.sandbox_session", fake_sandbox_session())
     monkeypatch.setattr("app.agents.test_agent.sandbox_session", fake_sandbox_session())
+    monkeypatch.setattr("app.agents.security_agent.sandbox_session", fake_sandbox_session())
