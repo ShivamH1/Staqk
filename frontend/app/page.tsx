@@ -1,6 +1,9 @@
 import Background3D from '@/components/marketing/background-3d'
 import Features from '@/components/marketing/features'
+import Footer from '@/components/marketing/footer'
 import Navbar from '@/components/marketing/navbar'
+import Pipeline from '@/components/marketing/pipeline'
+import Pricing from '@/components/marketing/pricing'
 import SmoothScroll from '@/components/marketing/smooth-scroll'
 
 export default function Home() {
@@ -46,6 +49,9 @@ export default function Home() {
         </section>
 
         <Features />
+        <Pipeline />
+        <Pricing />
+        <Footer />
       </div>
     </div>
   )

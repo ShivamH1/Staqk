@@ -2,8 +2,8 @@ import Link from 'next/link'
 
 const links = [
   { label: 'Product', href: '#product' },
+  { label: 'Pipeline', href: '#pipeline' },
   { label: 'Pricing', href: '#pricing' },
-  { label: 'Docs', href: '#docs' },
 ]
 
 /** Marketing top-nav: wordmark left, links center, pill CTAs right (design.md top-nav, 56px). */
