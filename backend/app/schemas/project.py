@@ -13,6 +13,14 @@ class ProjectCreate(BaseModel):
     tech_stack: dict[str, Any] = Field(default_factory=dict)
 
 
+class ProjectUpdate(BaseModel):
+    """Partial metadata update — only provided fields are changed."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = None
+    tech_stack: dict[str, Any] | None = None
+
+
 class ProjectResponse(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID

@@ -189,9 +189,26 @@ Added the `WebsiteProject` model, migration, and a CRUD projects router; gave `A
 
 **Verified (full gate):** ruff check (app/tests) + mypy strict (35 files) + 47 pytest (incl. 8 projects tests).
 
-### Step 11 — (next, backend) Persist pipeline results + `/ai/iterate` 🔲
+### Step 11 — Persist pipeline results + `/ai/iterate` + `PUT /projects/{id}` ✅ (2026-06-26)
 
-Wire the WS pipeline to a real `WebsiteProject`: flip `status` (building → ready/deployed/error) and save the generated `file_tree`/`deployment_url`, and add the `/ai/iterate` chat-iteration endpoint (`CHAT_ITERATION_COST=2`, loads the project's `existing_file_tree`). Alternatives: `PUT /projects/{id}`; live-verify the agents on a ≥2GB `E2B_TEMPLATE`. See progress-tracker.md → Upcoming Priorities.
+Connected the pipeline to real project persistence, added a chat-iteration endpoint, and rounded out the projects CRUD.
+
+- **`app/routers/ai.py`** (rewritten): the WS handler is decomposed into helpers — `_authenticate` (accept + `?token=` → user), `_resolve_project` (parse UUID + load the **user's** project, else close `1008`), and a shared **`_run_pipeline`** used by both endpoints. `_run_pipeline`: deduct `cost` before any AI work → set project `status=building` → stream the graph with **`stream_mode=["custom", "values"]`** (the `custom` chunks are streamed to the client; the final `values` chunk is the `AgentState` we persist) → on `final_state["error"]`: refund + `status=error` + `pipeline_error`; on success: `save_run_result(file_tree, status)` (`deployed` if a `deployment_url` came back, else `ready`) + `pipeline_complete`. Disconnect/crash refund + `status=error`. Persistence/status writes are best-effort (logged, never drop the result event).
+  - **`WS /ai/stream/{project_id}`** — full pipeline at `PIPELINE_COST` (5).
+  - **`WS /ai/iterate/{project_id}`** (new) — chat iteration at `CHAT_ITERATION_COST` (2); seeds `existing_file_tree`/`tech_stack` from the **saved project** so agents revise rather than regenerate.
+  - Switching from custom-only to `["custom","values"]` also replaced the Step-9 `agent_error`-flag heuristic with the authoritative `final_state["error"]`.
+- **`app/services/projects.py`**: added `update_project` (partial metadata patch, user-scoped), and pipeline-persistence helpers `set_status` / `save_run_result` (+ private `_get_owned_unscoped` — loads a live project by id only, since ownership was already checked when the socket resolved it). The latter two wrap their own `db.begin()`.
+- **`app/schemas/project.py`**: `ProjectUpdate` (all-optional `name`/`description`/`tech_stack`; `name` keeps the length bounds).
+- **`app/routers/projects.py`**: `PUT /projects/{id}` (`ProjectResponse`, 404 if absent) — the metadata-update route from the architecture table.
+- **Tests**: `tests/test_ws.py` now stubs project load + persistence (`get_project`/`set_status`/`save_run_result`) and uses a real UUID; existing full-pipeline test additionally asserts the run was **persisted** (`final_status == deployed`, file tree saved); new `test_ws_iterate_uses_chat_cost` asserts `/iterate` deducts **2** and completes. `tests/test_projects.py`: added `PUT` success (200) + missing (404).
+
+**Deviations / notes:** The handler now **requires `project_id` to be an existing, owned `WebsiteProject` UUID** — the old free-form string id no longer works (a project must be created via `POST /projects` first). `deployment_url` is **not** persisted on the project (no column for it — it belongs to the future `Deployment` table; the Deploy agent is still a stub so the URL is a placeholder). `status=deployed` is therefore set off the stub URL — it'll mean a real deploy once the Deploy agent is wired. No live verification (same E2B/Neon/Clerk gaps).
+
+**Verified (full gate):** ruff check (app/tests) + mypy strict (35 files) + 50 pytest (incl. iterate + PUT tests).
+
+### Step 12 — (next, backend) Live-verify, or Deploy agent (Vercel) 🔲
+
+Best done once a ≥2GB `E2B_TEMPLATE` + live Neon + a real Clerk token are available: run a project end-to-end (create → stream → persisted `file_tree`/`status`, credits settled). Otherwise, code-only next steps: wire the **Deploy agent** to the real Vercel API (replace the stub URL; add a `Deployment` row), or Stripe Checkout + webhook for buying credits. See progress-tracker.md → Upcoming Priorities.
 
 ---
 

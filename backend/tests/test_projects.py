@@ -133,6 +133,35 @@ def test_get_project_missing_returns_404(
     assert resp.status_code == 404
 
 
+def test_update_project(authed_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    project = _fake_project("Old")
+
+    async def fake_update(
+        db: object, user_id: object, project_id: object, **fields: Any
+    ) -> WebsiteProject:
+        if fields.get("name") is not None:
+            project.name = fields["name"]
+        return project
+
+    monkeypatch.setattr("app.services.projects.update_project", fake_update)
+
+    resp = authed_client.put(f"/projects/{project.id}", json={"name": "New"})
+    assert resp.status_code == 200
+    assert resp.json()["name"] == "New"
+
+
+def test_update_missing_returns_404(
+    authed_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_update(db: object, user_id: object, project_id: object, **fields: Any) -> None:
+        return None
+
+    monkeypatch.setattr("app.services.projects.update_project", fake_update)
+
+    resp = authed_client.put(f"/projects/{uuid.uuid4()}", json={"name": "New"})
+    assert resp.status_code == 404
+
+
 def test_delete_project(authed_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     async def fake_delete(db: object, user_id: object, project_id: object) -> bool:
         return True

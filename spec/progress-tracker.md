@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-06-26
 **Current phase:** Phase 1 MVP
-**Current position:** Phase 1, Step 10 complete (projects router + DB — `WebsiteProject` model, CRUD router with soft-delete, migration 0003; `AIUsageLog.project_id` FK resolved; offline-verified). Full AI-pipeline logic (Plan→Code→Test→Security) is real; Deploy remains a stub; pipeline does not yet persist into projects. Next: persist pipeline results + `/ai/iterate`. (Frontend landing parked at F3.)
+**Current position:** Phase 1, Step 11 complete (pipeline now persists into `WebsiteProject` — building→ready/deployed/error + saved `file_tree`; new `WS /ai/iterate` at 2 credits; `PUT /projects/{id}`; offline-verified). Full AI-pipeline logic (Plan→Code→Test→Security) is real; Deploy remains a stub. Next: live-verify end-to-end (needs ≥2GB E2B template + Neon + Clerk), or wire the Deploy agent to Vercel. (Frontend landing parked at F3.)
 
 Status key: ✅ Done | 🟡 Partial / stub | 🔲 Not started | 🔴 Blocked
 
@@ -47,7 +47,7 @@ Status key: ✅ Done | 🟡 Partial / stub | 🔲 Not started | 🔴 Blocked
 | Monaco editor integration | ✅ | `CodeEditor` (read-only, vs-dark, JetBrains Mono) |
 | File tree component | ✅ | `FileTree` driven by `file_created` events |
 | Live preview panel (E2B iframe) | 🟡 | Placeholder + iframe-on-deploy; no E2B preview yet |
-| Chat panel + iteration flow | 🟡 | `ChatPanel` sends initial message; `/ai/iterate` not wired |
+| Chat panel + iteration flow | 🟡 | `WS /ai/iterate` wired backend (2 credits, seeds existing file tree); `ChatPanel` frontend not yet pointed at it |
 | Agent progress pipeline UI | ✅ | `AgentProgressBar` consumes WS events via `usePipeline` |
 | Version history panel | 🔲 | |
 | GSAP + Framer Motion + Lenis setup | 🟡 | Framer Motion (keyboard) + Lenis smooth scroll wired on landing; GSAP + GT Walsheim font not yet used |
@@ -73,7 +73,7 @@ Status key: ✅ Done | 🟡 Partial / stub | 🔲 Not started | 🔴 Blocked
 | F-04 Multi-file code generation | 🟡 | Code Agent real (gen + build check); needs live keys + Test/Security/Deploy real |
 | F-05 File tree + Monaco editor | 🔲 | |
 | F-06 Live preview | 🔲 | |
-| F-07 Chat iteration | 🔲 | |
+| F-07 Chat iteration | 🟡 | `WS /ai/iterate` backend done; needs frontend wiring + live verify |
 | F-08 Version history | 🔲 | |
 | F-09 Stripe credits + billing | 🟡 | Credit ledger (deduct/refund/`AIUsageLog`) done; Stripe Checkout + webhook still to do |
 | F-10 Vercel deployment | 🟡 | Deploy Agent stub only |
@@ -108,10 +108,10 @@ _None. Live Neon DB + real Clerk keys needed before end-to-end auth verification
 
 ## Upcoming Priorities
 
-1. Persist pipeline results into `WebsiteProject`: WS handler flips `status` (building→ready/deployed/error) and saves `file_tree`/`deployment_url` so a run survives the socket closing
-2. Chat iteration endpoint (`/ai/iterate`) wired to the chat panel (uses `CHAT_ITERATION_COST=2`, already defined; loads the project's `file_tree` as `existing_file_tree`)
-3. `PUT /projects/{id}` (metadata update) to round out the projects CRUD
-4. Live-verify the Code + Test + Security agents end-to-end once an `E2B_TEMPLATE` (≥2GB) + verified model slugs are available
+1. Live-verify end-to-end once an `E2B_TEMPLATE` (≥2GB) + live Neon + a real Clerk token are available: create → `WS /ai/stream` → persisted `file_tree`/`status`, credits settled
+2. Deploy agent → real Vercel API (replace the stub URL; add a `Deployment` row + table) so `status=deployed` is real
+3. Stripe Checkout + webhook to buy credits (`Transaction(type=purchase)`); credit-balance display
+4. Point the frontend `ChatPanel` at `WS /ai/iterate`; load a real project into the workspace via the projects API
 5. Resume frontend landing (parked at F3): pipeline section, footer, anchor-aware Lenis
 
 ---
