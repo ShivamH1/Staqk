@@ -35,6 +35,10 @@ _FAKE_FILE_TREE = {
     "app/page.tsx": "export default function Page() { return null }",
 }
 
+_FAKE_TEST_TREE = {
+    "app/page.test.tsx": "import { test } from 'vitest'\ntest('renders', () => {})",
+}
+
 
 class _FakeResponse:
     def __init__(self, content: str) -> None:
@@ -53,14 +57,17 @@ class _FakeModel:
 def mock_chat_model(monkeypatch: pytest.MonkeyPatch) -> None:
     """Replace real LLM construction with fakes that return valid agent output.
 
-    The Plan agent gets a plan JSON; the Code agent gets a file-tree JSON. Keeps
-    the full-pipeline and WS tests offline. Individual tests can override by
-    patching `app.agents.models.get_chat_model` again.
+    The Plan agent gets a plan JSON; the Code agent gets a file-tree JSON; the
+    Test agent gets a test-tree JSON. Keeps the full-pipeline and WS tests
+    offline. Individual tests can override by patching
+    `app.agents.models.get_chat_model` again.
     """
 
     def fake_get_chat_model(agent: str) -> _FakeModel:
         if agent == "code":
             return _FakeModel(json.dumps(_FAKE_FILE_TREE))
+        if agent == "test":
+            return _FakeModel(json.dumps(_FAKE_TEST_TREE))
         return _FakeModel(json.dumps(_FAKE_PLAN))
 
     monkeypatch.setattr("app.agents.models.get_chat_model", fake_get_chat_model)
@@ -105,5 +112,6 @@ def fake_sandbox_session(*exit_codes: int) -> Any:
 
 @pytest.fixture(autouse=True)
 def mock_sandbox(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Patch the Code Agent's sandbox so builds succeed without hitting E2B."""
+    """Patch the Code + Test agents' sandboxes so they succeed without hitting E2B."""
     monkeypatch.setattr("app.agents.code_agent.sandbox_session", fake_sandbox_session())
+    monkeypatch.setattr("app.agents.test_agent.sandbox_session", fake_sandbox_session())

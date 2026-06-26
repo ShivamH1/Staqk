@@ -19,6 +19,7 @@ class AgentState(TypedDict, total=False):
     # Test Agent output
     test_results: list[dict[str, Any]]
     tests_passed: bool
+    test_failures: str | None  # truncated failing-test log, fed back on retry
 
     # Security Agent output
     security_findings: list[dict[str, Any]]

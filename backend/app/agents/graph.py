@@ -7,7 +7,7 @@ from app.agents.code_agent import code_node
 from app.agents.deploy_agent import deploy_node
 from app.agents.plan_agent import plan_node
 from app.agents.security_agent import security_node
-from app.agents.state import MAX_CODE_RETRIES, AgentState
+from app.agents.state import AgentState
 from app.agents.test_agent import test_node
 
 
@@ -28,15 +28,18 @@ def _after_code(state: AgentState) -> str:
 def _after_test(state: AgentState) -> str:
     """Route after the Test Agent.
 
-    - tests pass        → security
-    - tests fail, retries left → back to code
-    - tests fail, exhausted    → end (error)
+    - tests pass               → security
+    - tests fail, error set     → end (parse/sandbox failure or retries exhausted)
+    - tests fail, retry pending → back to code (with test_failures as context)
+
+    The Test Agent increments `retry_count` and sets `error` itself, mirroring the
+    Code Agent — so this routing is symmetric with `_after_code`.
     """
     if state.get("tests_passed"):
         return "security"
-    if state.get("retry_count", 0) < MAX_CODE_RETRIES:
-        return "code"
-    return END
+    if state.get("error"):
+        return END
+    return "code"
 
 
 def _after_security(state: AgentState) -> str:

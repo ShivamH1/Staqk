@@ -86,12 +86,20 @@ def _build_messages(state: AgentState) -> list[BaseMessage]:
     ]
 
     build_error = state.get("build_error")
-    if build_error:
+    test_failures = state.get("test_failures")
+    if build_error or test_failures:
         previous = state.get("file_tree") or state.get("existing_file_tree") or {}
-        parts.append(
-            "The previous attempt FAILED to build. Fix the errors and return the "
-            "FULL corrected file tree.\n\nBuild error:\n" + build_error
-        )
+        if build_error:
+            parts.append(
+                "The previous attempt FAILED to build. Fix the errors and return the "
+                "FULL corrected file tree.\n\nBuild error:\n" + build_error
+            )
+        if test_failures:
+            parts.append(
+                "The previous attempt built but FAILED its tests. Fix the code (not the "
+                "tests) and return the FULL corrected file tree.\n\nTest failures:\n"
+                + test_failures
+            )
         if previous:
             parts.append("Previous files:\n" + json.dumps(previous))
 
