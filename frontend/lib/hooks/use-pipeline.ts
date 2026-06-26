@@ -16,24 +16,24 @@ export function usePipeline(projectId: string) {
   const [connected, setConnected] = useState(false)
   const socketRef = useRef<WebSocket | null>(null)
 
-  const start = useCallback(
-    async ({ userMessage, techStack = {} }: StartArgs) => {
+  const run = useCallback(
+    async (endpoint: 'stream' | 'iterate', payload: Record<string, unknown>) => {
       const token = await getToken()
       if (!token) return
 
+      dispatch({ type: 'reset' })
       const base = process.env.NEXT_PUBLIC_API_URL?.replace(/^http/, 'ws') ?? 'ws://localhost:8000'
-      const ws = new WebSocket(`${base}/ai/stream/${projectId}?token=${token}`)
+      const ws = new WebSocket(`${base}/ai/${endpoint}/${projectId}?token=${token}`)
       socketRef.current = ws
 
       ws.onopen = () => {
         setConnected(true)
-        ws.send(JSON.stringify({ user_message: userMessage, tech_stack: techStack }))
+        ws.send(JSON.stringify(payload))
       }
 
       ws.onmessage = (msg) => {
         try {
-          const event = JSON.parse(msg.data as string) as AgentEvent
-          dispatch(event)
+          dispatch(JSON.parse(msg.data as string) as AgentEvent)
         } catch {
           // ignore malformed frames
         }
@@ -47,5 +47,17 @@ export function usePipeline(projectId: string) {
     [getToken, projectId],
   )
 
-  return { state, connected, start }
+  const start = useCallback(
+    ({ userMessage, techStack = {} }: StartArgs) =>
+      run('stream', { user_message: userMessage, tech_stack: techStack }),
+    [run],
+  )
+
+  /** Chat iteration over the project's existing file tree (cheaper than a full run). */
+  const iterate = useCallback(
+    (userMessage: string) => run('iterate', { user_message: userMessage }),
+    [run],
+  )
+
+  return { state, connected, start, iterate }
 }

@@ -49,8 +49,13 @@ function setStage(
   }
 }
 
-export function pipelineReducer(state: PipelineState, event: AgentEvent): PipelineState {
+/** Pipeline events plus a synthetic `reset` to clear state between runs. */
+export type PipelineAction = AgentEvent | { type: 'reset' }
+
+export function pipelineReducer(state: PipelineState, event: PipelineAction): PipelineState {
   switch (event.type) {
+    case 'reset':
+      return initialPipelineState()
     case 'agent_start':
       return setStage({ ...state, status: 'running' }, event.agent, {
         status: 'running',
