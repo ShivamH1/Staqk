@@ -36,12 +36,22 @@ def test_ws_rejects_missing_token() -> None:
             ws.receive_json()
 
 
-def test_ws_streams_full_pipeline(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Bypass real Clerk/DB auth — return a fake user for any token.
+def _patch_auth(monkeypatch: pytest.MonkeyPatch) -> None:
     async def fake_verify(token: str, db: object) -> User:
         return _fake_user()
 
     monkeypatch.setattr("app.routers.ai.verify_token_get_user", fake_verify)
+
+
+def test_ws_streams_full_pipeline(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_auth(monkeypatch)
+
+    deducted: list[int] = []
+
+    async def fake_deduct(db: object, user_id: object, amount: int, description: str, **kw: object):
+        deducted.append(amount)
+
+    monkeypatch.setattr("app.routers.ai.credit_service.deduct_credits", fake_deduct)
 
     client = TestClient(app)
     with client.websocket_connect("/ai/stream/proj-1?token=abc") as ws:
@@ -57,8 +67,37 @@ def test_ws_streams_full_pipeline(monkeypatch: pytest.MonkeyPatch) -> None:
     types = [e["type"] for e in events]
     assert "pipeline_complete" in types
     assert types[-1] == "pipeline_complete"
+    assert events[-1]["credits_used"] == 5
+    assert deducted == [5]  # deducted exactly once, before the run
 
     started = {e["agent"] for e in events if e["type"] == "agent_start"}
     completed = {e["agent"] for e in events if e["type"] == "agent_complete"}
     assert started == {"plan", "code", "test", "security", "deploy"}
     assert completed == {"plan", "code", "test", "security", "deploy"}
+
+
+def test_ws_insufficient_credits_blocks_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_auth(monkeypatch)
+
+    from app.services.credits import InsufficientCreditsError
+
+    started = False
+
+    async def fake_deduct(db: object, user_id: object, amount: int, description: str, **kw: object):
+        raise InsufficientCreditsError(available=1, required=amount)
+
+    def fail_if_called(*_a: object, **_k: object) -> None:
+        nonlocal started
+        started = True
+
+    monkeypatch.setattr("app.routers.ai.credit_service.deduct_credits", fake_deduct)
+    monkeypatch.setattr("app.routers.ai.pipeline.astream", fail_if_called)
+
+    client = TestClient(app)
+    with client.websocket_connect("/ai/stream/proj-1?token=abc") as ws:
+        ws.send_json({"user_message": "build a todo app", "tech_stack": {}})
+        msg = ws.receive_json()
+
+    assert msg["type"] == "pipeline_error"
+    assert msg["credits_refunded"] == 0
+    assert started is False  # the pipeline never ran

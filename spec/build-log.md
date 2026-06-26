@@ -153,9 +153,27 @@ Replaced the Security stub with a real Semgrep scan in E2B + Mistral-Small auto-
 
 **Not live-verified:** same E2B base-template RAM limit as Steps 6–7 — a real Semgrep run on a full tree needs the larger `E2B_TEMPLATE`. Logic is exercised offline via the scripted sandbox.
 
-### Step 9 — (next, backend) Credit deduction + refund logic 🔲
+### Step 9 — Credit deduction + refund logic ✅ (2026-06-26)
 
-Wire the credit check-before / atomic-deduct / refund-on-failure path (TODO in `routers/ai.py`): 402 if insufficient, deduct + `AIUsageLog` inside one transaction, `Transaction(type=refund)` on pipeline failure. Alternatives: projects router + DB, or chat iteration endpoint. See progress-tracker.md → Upcoming Priorities.
+Wired the credit ledger into the pipeline: pre-check + atomic deduct before any AI work, refund on failure.
+
+- **`app/models/transaction.py`** (new): `Transaction` + `TransactionType` StrEnum (purchase/spend/refund). Signed `amount` (positive purchase/refund, negative spend), FK → `users.id`. Immutable ledger — a refund is a new positive row, never an edit/reversal of the spend.
+- **`app/models/ai_usage.py`** (new): `AIUsageLog` — one row per deduction (FK → `users.id`, nullable `project_id` **without an FK** until the projects table exists, agent/provider/model, token counts, `credits_used`).
+- **`app/models/__init__.py`**: exports both new models (so Alembic autogenerate/metadata sees them).
+- **`app/services/credits.py`** (new): `PIPELINE_COST=5`, `CHAT_ITERATION_COST=2` (fixed product pricing, per CLAUDE.md), `InsufficientCreditsError(available, required)`.
+  - `deduct_credits(...)`: `async with db.begin()` → `SELECT … FOR UPDATE` the user row (blocks concurrent double-spend) → if balance short, raise (transaction rolls back, nothing persisted) → else decrement + add `spend` `Transaction` + `AIUsageLog`, all in one commit.
+  - `refund_credits(...)`: locks the user, increments credits, adds a `refund` `Transaction`. No-op (logged) if the user is gone.
+- **`app/routers/ai.py`**: the WS handler now (1) deducts `PIPELINE_COST` *after* receiving the start message but *before* `pipeline.astream` — on `InsufficientCreditsError` it sends `pipeline_error` (`credits_refunded: 0`) and closes `1008`, nothing runs; (2) watches the stream for `agent_error` — since an agent failure ends the stream **without raising**, an `errored` flag drives a refund + `pipeline_error`; (3) refunds on `WebSocketDisconnect` and on any unexpected exception via a best-effort `_refund_run` helper (its own session; a refund failure is logged, never masks the original error). Imported as `credit_service` (the bare name `credits` shadows a Python builtin — ruff A004).
+- **`alembic/versions/0002_credits_ledger.py`** (new, hand-written like 0001): creates `transactions` + `ai_usage_logs` (+ `transaction_type` enum, user-id indexes); `downgrade` drops both and the enum.
+- **Tests**: new `tests/test_credits.py` (5) exercises deduct (decrement + spend txn + usage log committed), insufficient (raises, nothing added, rolled back), missing-user, refund (positive txn, +balance), refund-missing-user — via a `_FakeSession` (records `add`s, `begin()` tracks commit/rollback) so no DB is needed. `tests/test_ws.py`: existing pipeline test now stubs `deduct_credits` and asserts it's called once for 5 + `credits_used==5`; new test asserts insufficient credits emits `pipeline_error`/`credits_refunded: 0` and the pipeline **never runs**.
+
+**Deviations / notes:** `AIUsageLog.project_id` has no FK yet (projects table is a later step). One `AIUsageLog`/`spend` row per **run** (5 credits), not per-agent — the per-agent token breakdown can be split out once agents report token usage. `CHAT_ITERATION_COST` is defined but unused until the `/ai/iterate` endpoint lands. Migration 0002 is written + offline-validated only; no live Neon apply yet (same as 0001). Credit tests use a fake session (no `aiosqlite` in the venv) — they verify the ledger logic, not real Postgres `FOR UPDATE` locking.
+
+**Verified (full gate):** ruff check (app/tests) + mypy strict (31 files) + 39 pytest (incl. 5 credits tests + WS insufficient-credits test, offline full-pipeline).
+
+### Step 10 — (next, backend) Projects router + DB 🔲
+
+Add the `WebsiteProject` model + migration and a projects router (`POST /projects`, `GET /projects`, `GET /projects/{id}`, soft-delete) so the workspace loads a real project and the pipeline can persist `file_tree`/status. Then `AIUsageLog.project_id` can take its FK. Alternatives: chat iteration endpoint (`/ai/iterate`), or live-verify the agents on a ≥2GB `E2B_TEMPLATE`. See progress-tracker.md → Upcoming Priorities.
 
 ---
 
