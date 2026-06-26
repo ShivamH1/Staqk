@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-06-26
 **Current phase:** Phase 1 MVP
-**Current position:** Phase 1, Step 9 complete (credit deduction/refund wired into the WS pipeline — atomic pre-check + spend/`AIUsageLog`, refund on failure; `Transaction`/`AIUsageLog` models + migration 0002, offline-verified). Full AI-pipeline logic (Plan→Code→Test→Security) is real; Deploy remains a stub. Next: projects router + DB, or chat iteration endpoint. (Frontend landing parked at F3.)
+**Current position:** Phase 1, Step 10 complete (projects router + DB — `WebsiteProject` model, CRUD router with soft-delete, migration 0003; `AIUsageLog.project_id` FK resolved; offline-verified). Full AI-pipeline logic (Plan→Code→Test→Security) is real; Deploy remains a stub; pipeline does not yet persist into projects. Next: persist pipeline results + `/ai/iterate`. (Frontend landing parked at F3.)
 
 Status key: ✅ Done | 🟡 Partial / stub | 🔲 Not started | 🔴 Blocked
 
@@ -108,10 +108,11 @@ _None. Live Neon DB + real Clerk keys needed before end-to-end auth verification
 
 ## Upcoming Priorities
 
-1. Projects router + DB (`WebsiteProject` model + migration, `POST /projects`, project list, soft-delete) so the workspace loads a real project and the pipeline persists `file_tree`/status; then `AIUsageLog.project_id` gets its FK
-2. Chat iteration endpoint (`/ai/iterate`) wired to the chat panel (uses `CHAT_ITERATION_COST=2`, already defined)
-3. Live-verify the Code + Test + Security agents end-to-end once an `E2B_TEMPLATE` (≥2GB) + verified model slugs are available
-4. Resume frontend landing (parked at F3): pipeline section, footer, anchor-aware Lenis
+1. Persist pipeline results into `WebsiteProject`: WS handler flips `status` (building→ready/deployed/error) and saves `file_tree`/`deployment_url` so a run survives the socket closing
+2. Chat iteration endpoint (`/ai/iterate`) wired to the chat panel (uses `CHAT_ITERATION_COST=2`, already defined; loads the project's `file_tree` as `existing_file_tree`)
+3. `PUT /projects/{id}` (metadata update) to round out the projects CRUD
+4. Live-verify the Code + Test + Security agents end-to-end once an `E2B_TEMPLATE` (≥2GB) + verified model slugs are available
+5. Resume frontend landing (parked at F3): pipeline section, footer, anchor-aware Lenis
 
 ---
 

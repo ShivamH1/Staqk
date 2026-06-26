@@ -171,9 +171,27 @@ Wired the credit ledger into the pipeline: pre-check + atomic deduct before any 
 
 **Verified (full gate):** ruff check (app/tests) + mypy strict (31 files) + 39 pytest (incl. 5 credits tests + WS insufficient-credits test, offline full-pipeline).
 
-### Step 10 — (next, backend) Projects router + DB 🔲
+### Step 10 — Projects router + DB ✅ (2026-06-26)
 
-Add the `WebsiteProject` model + migration and a projects router (`POST /projects`, `GET /projects`, `GET /projects/{id}`, soft-delete) so the workspace loads a real project and the pipeline can persist `file_tree`/status. Then `AIUsageLog.project_id` can take its FK. Alternatives: chat iteration endpoint (`/ai/iterate`), or live-verify the agents on a ≥2GB `E2B_TEMPLATE`. See progress-tracker.md → Upcoming Priorities.
+Added the `WebsiteProject` model, migration, and a CRUD projects router; gave `AIUsageLog.project_id` its FK.
+
+- **`app/models/project.py`** (new): `WebsiteProject` + `ProjectStatus` StrEnum (draft/building/ready/deployed/error). FK → `users.id`; `tech_stack`/`file_tree` as `JSONB` (default `{}`); `created_at`/`updated_at` (`onupdate=now()`); **`deleted_at`** for soft-delete (CLAUDE.md: never hard-delete user data).
+- **`app/models/ai_usage.py`**: `project_id` now carries its real `ForeignKey("website_projects.id")` (the deferral noted in Step 9 is resolved).
+- **`app/models/__init__.py`**: exports `WebsiteProject`/`ProjectStatus`.
+- **`app/schemas/project.py`** (new): `ProjectCreate` (`name` `Field(min_length=1, max_length=200)`, optional `description`/`tech_stack`), `ProjectResponse` (full, incl. `file_tree`), `ProjectSummary` (list view — **omits `file_tree`** to keep listings light).
+- **`app/services/projects.py`** (new): `create_project` (flush+refresh), `list_projects` (selects **specific columns** — not `SELECT *` — newest-first, `deleted_at IS NULL`), `get_project` (scoped to owner + not-deleted), `soft_delete_project` (sets `deleted_at`, returns False if absent). All reads are user-scoped so one user can't touch another's projects.
+- **`app/routers/projects.py`** (new): `POST /projects` (201), `GET /projects` (`list[ProjectSummary]`), `GET /projects/{id}` (404 if absent), `DELETE /projects/{id}` (204 soft-delete, 404 if absent) — all behind `Depends(get_current_user)`. Mutations run inside `async with db.begin()`; the create returns inside the block (commit fires on exit; `expire_on_commit=False` keeps attrs).
+- **`app/main.py`**: registers `projects.router`.
+- **`alembic/versions/0003_create_website_projects.py`** (new, hand-written): creates `website_projects` (+ `project_status` enum, JSONB columns, user-id index) then `op.create_foreign_key` for `ai_usage_logs.project_id`. `downgrade` drops the FK, table, and enum in order.
+- **Tests**: new `tests/test_projects.py` (8) via FastAPI `dependency_overrides` (`get_current_user` → fake user, `get_db` → `_FakeDB` whose `begin()` is an async CM) + monkeypatched `project_service`: auth-required (401), create (201), empty-name rejected (422), list (200, **asserts `file_tree` absent**), get found/404, delete 204/404.
+
+**Deviations / notes:** `PUT /projects/{id}` (metadata update) from the architecture routes table is **not** implemented yet — create/list/get/soft-delete cover what the workspace needs now. The **pipeline does not yet persist** into `WebsiteProject` (the WS handler still streams `file_tree` without saving it or flipping `status`) — that wiring is a follow-up. Migration 0003 is offline-validated only (no live Neon apply). Project tests use overrides/fakes (no `aiosqlite`) — they verify routing/auth/serialisation, not real Postgres FKs or the `JSONB`/`deleted_at` filter.
+
+**Verified (full gate):** ruff check (app/tests) + mypy strict (35 files) + 47 pytest (incl. 8 projects tests).
+
+### Step 11 — (next, backend) Persist pipeline results + `/ai/iterate` 🔲
+
+Wire the WS pipeline to a real `WebsiteProject`: flip `status` (building → ready/deployed/error) and save the generated `file_tree`/`deployment_url`, and add the `/ai/iterate` chat-iteration endpoint (`CHAT_ITERATION_COST=2`, loads the project's `existing_file_tree`). Alternatives: `PUT /projects/{id}`; live-verify the agents on a ≥2GB `E2B_TEMPLATE`. See progress-tracker.md → Upcoming Priorities.
 
 ---
 
