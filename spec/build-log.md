@@ -114,9 +114,29 @@ Replaced the Code stub with real LLM generation + an E2B sandbox build check.
   - Leaned the install command to `npm install --no-audit --no-fund`.
 - **Infra finding:** the E2B **base template has only ~482MB RAM** (Node 20, npm 10, 2 vCPU). A full Next.js `npm install`/`build` OOMs ("JavaScript heap out of memory"). The Code Agent handled it correctly (captured the log, would retry) but a retry can't fix an OOM. Added a configurable **`E2B_TEMPLATE`** setting (`config.py`) passed to `AsyncSandbox.create(template=...)`; set it to a custom template with ≥2GB RAM to build real Next.js apps. Empty → base template (fine for trivial/non-Next projects).
 
-### Step 7 — (next, backend) Test Agent + E2B 🔲
+### Step 7 — Test Agent + E2B ✅ (2026-06-25)
 
-Wire the Test Agent to Groq Llama: generate Vitest/Playwright tests, run `npx vitest run` in the sandbox, parse `test_results`, and make `_after_test` increment `retry_count` so failing tests route back to Code with context. Alternatives: credit deduction/refund logic, or the projects router. See progress-tracker.md → Upcoming Priorities.
+Replaced the Test stub with real Groq-Llama test generation + Vitest execution in E2B.
+
+- **`app/agents/test_agent.py`**: `test_node` calls Groq Llama (OpenRouter fallback) with `TEST_SYSTEM_PROMPT` (from ai-pipeline.md) to generate Vitest test files as a `{path: content}` JSON tree (reuses `code_agent.parse_file_tree`), emits `file_created` per test, then `_run_tests` writes code + tests to an E2B sandbox, runs `npm install --no-audit --no-fund` + `npx --yes vitest run`. **Pass/fail is driven by the runner exit code**; `_parse_results` best-effort-extracts pass/fail counts from the vitest summary line. Outcomes mirror the Code Agent:
+  - tests pass → `tests_passed=True`, clears `test_failures`.
+  - tests fail, retries left → `tests_passed=False`, `test_failures`=truncated log, `retry_count+1` (graph routes back to `code`).
+  - tests fail, retries exhausted → sets `error`, halting the pipeline.
+  - bad model output / sandbox failure → sets `error`, `tests_passed=False`.
+- **`app/agents/state.py`**: added `test_failures: str | None` (retry context).
+- **`app/agents/graph.py`**: rewrote `_after_test` to mirror `_after_code` — tests pass → `security`, `error` set → `END`, else → `code`. The retry-budget check + `retry_count` increment now live in `test_node` (was a bare `retry_count < MAX` check in the router that never incremented — the gap flagged in Step 6). Dropped the now-unused `MAX_CODE_RETRIES` import.
+- **`app/agents/code_agent.py`**: `_build_messages` now also feeds `test_failures` back on a test-driven retry ("the code built but failed its tests — fix the code, not the tests") alongside the existing `build_error` path.
+- **Tests**: `conftest.py` gains a `_FAKE_TEST_TREE`, the fake model branches for the `test` agent, and `mock_sandbox` now also patches `app.agents.test_agent.sandbox_session`. New `tests/test_test_agent.py` (6 tests) covers `_parse_results`, the pass path, fail-requests-retry, halt-after-retries, and invalid-output. (The agent function is `test_node`, which pytest would otherwise collect as a test — imported `as run_test_node` to avoid that.)
+
+**Deviations / notes:** Playwright e2e generation is deferred — Vitest unit tests only for now (e2e in the sandbox is heavier and flakier). `_after_test → code` and `_after_code → code` share the `retry_count` budget (`MAX_CODE_RETRIES`), per ai-pipeline.md. OpenRouter fallback slug for `test` (`meta-llama/llama-3.1-70b-instruct`) is still unverified.
+
+**Verified (full gate):** ruff + mypy strict (28 files) + 25 pytest (incl. 6 test-agent tests, offline full-pipeline, WS).
+
+**Not live-verified:** same E2B base-template RAM limit as Step 6 — `npm install` + `npx vitest` on a real Next.js app needs the larger `E2B_TEMPLATE`. Logic is exercised offline via the mocked sandbox.
+
+### Step 8 — (next, backend) Security Agent + Semgrep 🔲
+
+Wire the Security Agent to Semgrep in E2B (`semgrep --config=auto --json`), parse findings by severity, auto-fix medium/high via Mistral Small, halt on critical. Alternatives: credit deduction/refund logic, or the projects router. See progress-tracker.md → Upcoming Priorities.
 
 ---
 

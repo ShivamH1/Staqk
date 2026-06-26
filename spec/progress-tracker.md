@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-06-25
 **Current phase:** Phase 1 MVP
-**Current position:** Phase 1, Step 6 complete (real Code Agent + E2B build check, offline-verified). Next: Test Agent + E2B, or credit logic, or projects router.
+**Current position:** Phase 1, Step 7 complete (real Test Agent + Vitest in E2B, offline-verified). Next: Security Agent + Semgrep, or credit logic, or projects router. (Frontend landing parked at F3.)
 
 Status key: ✅ Done | 🟡 Partial / stub | 🔲 Not started | 🔴 Blocked
 
@@ -34,7 +34,7 @@ Status key: ✅ Done | 🟡 Partial / stub | 🔲 Not started | 🔴 Blocked
 | Plan Agent (Gemini Flash) | ✅ | Real LLM call + JSON parse; error path handled |
 | Code Agent (Mistral Large) | ✅ | Real generation + sandbox build check; build-fail retries (max 2). Not live-verified (no E2B/Mistral key) |
 | E2B sandbox integration (Python SDK) | ✅ | `app/sandbox/e2b.py` async wrapper; `sandbox_session()` kills in finally. Live test pending an E2B key |
-| Test Agent (Groq Llama) | 🟡 | Stub node |
+| Test Agent (Groq Llama) | ✅ | Real Vitest gen + sandbox run; test-fail retries back to Code. Not live-verified (E2B RAM) |
 | Security Agent (Semgrep + Mistral Small) | 🟡 | Stub node |
 | Deploy Agent (Vercel API) | 🟡 | Stub node returns placeholder URL |
 | WebSocket streaming (agent events → frontend) | ✅ | `WS /ai/stream/{id}`, token query-param auth, custom stream |
@@ -108,11 +108,12 @@ _None. Live Neon DB + real Clerk keys needed before end-to-end auth verification
 
 ## Upcoming Priorities
 
-1. Test Agent with live Groq Llama + E2B (`npx vitest run`); make `_after_test` increment `retry_count` so failing tests route back to Code with context
+1. Security Agent with Semgrep in E2B (`semgrep --config=auto --json`); parse by severity, auto-fix medium/high via Mistral Small, halt on critical
 2. Credit deduction/refund logic in the pipeline (TODO in `routers/ai.py`)
 3. Projects router + DB (`POST /projects`, project list) so the workspace loads a real project
 4. Chat iteration endpoint (`/ai/iterate`) wired to the chat panel
-5. Live-verify the Code Agent end-to-end once an `E2B_API_KEY` (+ verified code model slug) is available
+5. Live-verify the Code + Test agents end-to-end once an `E2B_TEMPLATE` (≥2GB) + verified model slugs are available
+6. Resume frontend landing (parked at F3): pipeline section, footer, anchor-aware Lenis
 
 ---
 
