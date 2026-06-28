@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import ai, auth, projects
+from app.routers import ai, auth, billing, projects
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -30,6 +30,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(ai.router)
 app.include_router(projects.router)
+app.include_router(billing.router)
 
 
 @app.get("/health")
