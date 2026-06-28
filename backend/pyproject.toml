@@ -35,7 +35,7 @@ dependencies = [
   # Sandbox
   "e2b>=1.0.0",
   # Payments
-  "stripe>=11.0.0",
+  "razorpay>=1.4.0",
   # Observability
   "sentry-sdk[fastapi]>=2.0.0",
   # Email
