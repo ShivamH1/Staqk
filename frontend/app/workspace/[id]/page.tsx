@@ -5,6 +5,7 @@ import { use, useEffect, useMemo, useRef, useState } from 'react'
 import { AgentPipeline } from '@/components/workspace/AgentPipeline'
 import { ChatPanel } from '@/components/workspace/ChatPanel'
 import { CodeEditor } from '@/components/workspace/CodeEditor'
+import { DeployGuide } from '@/components/workspace/DeployGuide'
 import { FileTree } from '@/components/workspace/FileTree'
 import { PreviewPanel } from '@/components/workspace/PreviewPanel'
 import { WorkspaceHeader } from '@/components/workspace/WorkspaceHeader'
@@ -23,6 +24,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
 
   const [selected, setSelected] = useState<string | null>(null)
   const [view, setView] = useState<'code' | 'preview'>('code')
+  const [showDeploy, setShowDeploy] = useState(false)
 
   const running = state.status === 'running'
   const fileTree = useMemo(() => project?.file_tree ?? {}, [project])
@@ -71,6 +73,15 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
         status={headerStatus}
         credits={user?.credits}
         deploymentUrl={state.deploymentUrl}
+        canDeploy={hasFiles && !running}
+        onDeploy={() => setShowDeploy(true)}
+      />
+
+      <DeployGuide
+        open={showDeploy}
+        onClose={() => setShowDeploy(false)}
+        name={project?.name ?? 'your app'}
+        fileTree={fileTree}
       />
 
       <div className="flex min-h-0 flex-1">
