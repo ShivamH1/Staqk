@@ -11,8 +11,6 @@ os.environ.setdefault("CLERK_SECRET_KEY", "sk_test_dummy")
 os.environ.setdefault("CLERK_WEBHOOK_SECRET", "whsec_dummy")
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://u:p@localhost/staqk")
 os.environ.setdefault("DATABASE_URL_DIRECT", "postgresql://u:p@localhost/staqk")
-os.environ.setdefault("STRIPE_SECRET_KEY", "sk_test_dummy")
-os.environ.setdefault("STRIPE_WEBHOOK_SECRET", "whsec_dummy")
 os.environ.setdefault("OPENROUTER_API_KEY", "sk-or-dummy")
 os.environ.setdefault("E2B_API_KEY", "e2b_dummy")
 

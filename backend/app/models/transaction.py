@@ -28,6 +28,9 @@ class Transaction(Base):
         Enum(TransactionType, name="transaction_type"), nullable=False
     )
     description: Mapped[str] = mapped_column(String, nullable=False, default="")
+    # External payment id (Razorpay) for `purchase` rows — unique so a replayed
+    # webhook can't credit twice. NULL for spend/refund (Postgres allows many NULLs).
+    reference: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

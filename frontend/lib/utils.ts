@@ -13,3 +13,21 @@ export function formatRelativeTime(iso: string): string {
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
   return `${Math.floor(seconds / 86400)}d ago`
 }
+
+/** Format a minor-unit amount (e.g. paise) as a whole-currency string: 79900 → "₹799". */
+export function formatCurrency(amountMinor: number, currency = 'INR'): string {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0,
+  }).format(amountMinor / 100)
+}
+
+/** "Jun 28, 2026" from an ISO timestamp. */
+export function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}

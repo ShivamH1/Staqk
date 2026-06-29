@@ -13,15 +13,11 @@ class Settings(BaseSettings):
     database_url: str
     database_url_direct: str
 
-    # Stripe
-    stripe_secret_key: str
-    stripe_webhook_secret: str
-    stripe_price_starter: str = ""
-    stripe_price_pro: str = ""
-    stripe_price_team: str = ""
-    stripe_price_credits_100: str = ""
-    stripe_price_credits_500: str = ""
-    stripe_price_credits_2000: str = ""
+    # Razorpay (payments — credit packs). Optional so the app boots without them;
+    # the order endpoint returns 503 until they're set.
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
+    razorpay_webhook_secret: str = ""
 
     # AI providers
     openrouter_api_key: str
