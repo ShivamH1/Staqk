@@ -1,4 +1,9 @@
+import uuid
+from datetime import datetime
+
 from pydantic import BaseModel
+
+from app.models.transaction import TransactionType
 
 
 class CreditPackInfo(BaseModel):
@@ -24,3 +29,16 @@ class CreateOrderResponse(BaseModel):
     key_id: str  # public Razorpay key id — safe to expose to the browser
     credits: int
     pack_id: str
+
+
+class TransactionResponse(BaseModel):
+    """A ledger entry for the billing history. `amount` is signed credits
+    (positive for purchase/refund, negative for spend)."""
+
+    id: uuid.UUID
+    amount: int
+    type: TransactionType
+    description: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

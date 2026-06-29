@@ -8,6 +8,7 @@ from app.models.transaction import TransactionType
 from app.models.user import Plan, User
 from app.services.credits import (
     InsufficientCreditsError,
+    credit_purchase,
     deduct_credits,
     refund_credits,
 )
@@ -127,4 +128,60 @@ async def test_refund_adds_positive_transaction() -> None:
 async def test_refund_missing_user_is_noop() -> None:
     db = _FakeSession(None)
     await refund_credits(db, uuid.uuid4(), 5, "Pipeline failed")
+    assert db.added == []
+
+
+class _ScriptedSession:
+    """Returns queued results for successive `execute()` calls.
+
+    `credit_purchase` executes twice: an idempotency check, then the locking user
+    lookup. Each test seeds the results those two queries should yield.
+    """
+
+    def __init__(self, results: list[Any]) -> None:
+        self._results = results
+        self.added: list[Any] = []
+        self.committed = False
+
+    def begin(self) -> Any:
+        @asynccontextmanager
+        async def _tx() -> Any:
+            yield
+            self.committed = True
+
+        return _tx()
+
+    async def execute(self, _stmt: Any) -> _FakeResult:
+        return _FakeResult(self._results.pop(0))
+
+    def add(self, obj: Any) -> None:
+        self.added.append(obj)
+
+
+@pytest.mark.anyio
+async def test_credit_purchase_adds_credits_and_records_reference() -> None:
+    user = _user(100)
+    db = _ScriptedSession([None, user])  # no existing txn, then the locked user
+
+    credited = await credit_purchase(db, user.id, 500, reference="pay_1", description="Bought 500")
+
+    assert credited is True
+    assert user.credits == 600
+    assert db.committed is True
+    txns = [o for o in db.added if type(o).__name__ == "Transaction"]
+    assert len(txns) == 1
+    assert txns[0].type == TransactionType.purchase
+    assert txns[0].amount == 500
+    assert txns[0].reference == "pay_1"
+
+
+@pytest.mark.anyio
+async def test_credit_purchase_skips_already_processed_payment() -> None:
+    user = _user(100)
+    db = _ScriptedSession([uuid.uuid4()])  # idempotency check finds an existing row
+
+    credited = await credit_purchase(db, user.id, 500, reference="pay_1", description="Bought 500")
+
+    assert credited is False
+    assert user.credits == 100  # unchanged
     assert db.added == []

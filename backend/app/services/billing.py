@@ -9,14 +9,18 @@ The Razorpay SDK is synchronous (requests-based), so every call is wrapped in
 `run_in_threadpool` to honour the no-sync-IO-in-async-handlers rule.
 """
 
+import hashlib
+import hmac
 import logging
 import uuid
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from fastapi.concurrency import run_in_threadpool
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.services import credits as credit_service
 
 if TYPE_CHECKING:
     import razorpay
@@ -93,3 +97,54 @@ async def create_order(user_id: uuid.UUID, pack_id: str) -> dict[str, Any]:
 
     logger.info("Created Razorpay order %s for user %s (%s)", order.get("id"), user_id, pack.id)
     return order
+
+
+def verify_webhook_signature(body: bytes, signature: str) -> bool:
+    """Verify a Razorpay webhook's HMAC-SHA256 signature against the raw body.
+
+    Returns False (rejecting the delivery) if no webhook secret is configured —
+    we never trust an unverifiable payload.
+    """
+    secret = settings.razorpay_webhook_secret
+    if not secret or not signature:
+        return False
+    expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature)
+
+
+async def handle_webhook_event(db: AsyncSession, payload: dict[str, Any]) -> None:
+    """Credit a user after Razorpay confirms an order is paid.
+
+    Listens for `order.paid` (the order entity carries the `notes` we stamped at
+    creation; the payment entity gives a stable id for idempotency). Credits and
+    buyer are read from the trusted server-set notes — never from the client.
+    """
+    if payload.get("event") != "order.paid":
+        return
+
+    entities = payload.get("payload", {})
+    order = entities.get("order", {}).get("entity", {})
+    payment = entities.get("payment", {}).get("entity", {})
+    notes = order.get("notes") or {}
+    reference = payment.get("id") or order.get("id")
+
+    user_id_raw = notes.get("user_id")
+    credits_raw = notes.get("credits")
+    if not (user_id_raw and credits_raw and reference):
+        logger.warning("order.paid webhook missing user_id/credits/reference; ignoring")
+        return
+
+    try:
+        user_id = uuid.UUID(str(user_id_raw))
+        credit_amount = int(credits_raw)
+    except (ValueError, TypeError):
+        logger.warning("order.paid webhook has malformed notes; ignoring")
+        return
+
+    await credit_service.credit_purchase(
+        db,
+        user_id,
+        credit_amount,
+        reference=str(reference),
+        description=f"Purchased {credit_amount} credits",
+    )

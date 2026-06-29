@@ -1,10 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import json
+from typing import Any
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from sqlalchemy import Row
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.database import get_db
 from app.middleware.auth import get_current_user
 from app.models.user import User
-from app.schemas.billing import CreateOrderRequest, CreateOrderResponse, CreditPackInfo
+from app.schemas.billing import (
+    CreateOrderRequest,
+    CreateOrderResponse,
+    CreditPackInfo,
+    TransactionResponse,
+)
 from app.services import billing as billing_service
+from app.services import credits as credit_service
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
@@ -47,3 +59,30 @@ async def create_order(
         credits=pack.credits,
         pack_id=pack.id,
     )
+
+
+@router.post("/webhook", status_code=status.HTTP_200_OK)
+async def razorpay_webhook(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    signature: str = Header("", alias="X-Razorpay-Signature"),
+) -> dict[str, str]:
+    """Receive Razorpay events. Verifies the signature against the raw body, then
+    credits the buyer on `order.paid`. Credits are granted *only* here — never
+    from a client callback — and idempotently, so replays are safe."""
+    body = await request.body()
+    if not billing_service.verify_webhook_signature(body, signature):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature")
+
+    payload: dict[str, Any] = json.loads(body)
+    await billing_service.handle_webhook_event(db, payload)
+    return {"status": "ok"}
+
+
+@router.get("/transactions", response_model=list[TransactionResponse])
+async def list_transactions(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[Row[Any]]:
+    """The signed-in user's credit ledger, newest first."""
+    return await credit_service.list_transactions(db, current_user.id)

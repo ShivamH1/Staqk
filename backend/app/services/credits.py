@@ -12,8 +12,10 @@ Credits gate every AI operation. The rules (CLAUDE.md / architecture.md):
 
 import logging
 import uuid
+from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import Row, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ai_usage import AIUsageLog
@@ -108,3 +110,70 @@ async def refund_credits(
             )
         )
     logger.info("Refunded %d credits to user %s (%s)", amount, user_id, description)
+
+
+async def credit_purchase(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    amount: int,
+    *,
+    reference: str,
+    description: str,
+) -> bool:
+    """Atomically add purchased credits, idempotent on `reference` (payment id).
+
+    Called from the Razorpay webhook after payment is confirmed server-side.
+    Returns False (and changes nothing) if this payment was already credited —
+    either because a row already exists, or because a concurrent delivery won the
+    race (the `reference` unique constraint rejects the duplicate insert).
+    """
+    try:
+        async with db.begin():
+            existing = await db.execute(
+                select(Transaction.id).where(Transaction.reference == reference)
+            )
+            if existing.scalar_one_or_none() is not None:
+                logger.info("Skipping already-processed payment %s", reference)
+                return False
+
+            result = await db.execute(select(User).where(User.id == user_id).with_for_update())
+            user = result.scalar_one_or_none()
+            if user is None:
+                logger.warning("Purchase credit skipped — user %s not found", user_id)
+                return False
+
+            user.credits += amount
+            db.add(
+                Transaction(
+                    user_id=user_id,
+                    amount=amount,
+                    type=TransactionType.purchase,
+                    description=description,
+                    reference=reference,
+                )
+            )
+    except IntegrityError:
+        logger.info("Concurrent delivery already credited payment %s", reference)
+        return False
+
+    logger.info("Credited %d credits to user %s (payment %s)", amount, user_id, reference)
+    return True
+
+
+async def list_transactions(
+    db: AsyncSession, user_id: uuid.UUID, limit: int = 50
+) -> list[Row[Any]]:
+    """A user's ledger entries, newest first (capped)."""
+    result = await db.execute(
+        select(
+            Transaction.id,
+            Transaction.amount,
+            Transaction.type,
+            Transaction.description,
+            Transaction.created_at,
+        )
+        .where(Transaction.user_id == user_id)
+        .order_by(Transaction.created_at.desc())
+        .limit(limit)
+    )
+    return list(result.all())
